@@ -1,0 +1,45 @@
+# Builds Replay OBS with the C# compiler that ships with Windows (.NET Framework 4.x).
+# No Visual Studio or .NET SDK required.
+#   .\build.ps1                 -> bin\ReplayOverlay.exe and bin\ReplayOBS-Setup.exe
+#   .\build.ps1 -Test           -> plus automated tests (WebSocket client, installer in a sandbox folder)
+#   .\build.ps1 -Test -Desktop  -> plus the window-visibility test (briefly opens Character Map)
+# This file is intentionally ASCII-only: Windows PowerShell 5.1 misreads non-ASCII scripts without a BOM.
+param([switch]$Test, [switch]$Desktop)
+$ErrorActionPreference = 'Stop'
+$fw = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
+$csc = Join-Path $fw 'csc.exe'
+if (-not (Test-Path $csc)) { throw '.NET Framework 4.x compiler (csc.exe) not found' }
+Push-Location $PSScriptRoot
+try {
+ $bin = 'bin'; New-Item -ItemType Directory -Force $bin, "$bin\tests" | Out-Null
+ $sys = 'System.dll','System.Core.dll','System.Web.Extensions.dll','System.Xaml.dll','System.Windows.Forms.dll','System.Drawing.dll' | ForEach-Object { '/reference:' + (Join-Path $fw $_) }
+ $wpf = 'WindowsBase.dll','PresentationCore.dll','PresentationFramework.dll' | ForEach-Object { '/reference:' + (Join-Path $fw "WPF\$_") }
+ function Compile([string]$out, [string]$target, [string[]]$options, [string[]]$sources) {
+  & $csc /nologo /utf8output /optimize+ /platform:x64 "/target:$target" "/out:$out" @options @sources
+  if ($LASTEXITCODE) { throw "Build failed: $out" }
+  Write-Host ('{0,-32} {1,10:N0} bytes' -f $out, (Get-Item $out).Length)
+ }
+
+ if (-not (Test-Path 'assets\icon.ico')) {
+  Compile "$bin\tests\MakeIcon.exe" exe @("/reference:$fw\System.Drawing.dll") @('tools\MakeIcon.cs')
+  & "$bin\tests\MakeIcon.exe" assets
+ }
+
+ $ov = 'src\Overlay'
+ $common = "$ov\ObsConfig.cs", "$ov\ObsClient.cs"
+ Compile "$bin\ReplayOverlay.exe" winexe (@("/win32manifest:$ov\app.manifest", '/win32icon:assets\icon.ico', "/resource:$ov\Overlay.xaml,Overlay.xaml") + $sys + $wpf) `
+  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Program.cs"))
+ Compile "$bin\ReplayOBS-Setup.exe" winexe (@('/win32manifest:src\Setup\setup.manifest', '/win32icon:assets\icon.ico', '/resource:src\Setup\Setup.xaml,Setup.xaml', '/resource:assets\icon.png,icon.png', "/resource:$bin\ReplayOverlay.exe,payload.ReplayOverlay.exe") + $sys + $wpf) `
+  (@('src\Setup\AssemblyInfo.cs', 'src\Setup\Setup.cs') + $common)
+
+ if ($Test) {
+  [Console]::OutputEncoding = [Text.Encoding]::UTF8
+  Compile "$bin\tests\FakeObsTest.exe" exe @("/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll") (@('tests\FakeObsTest.cs') + $common)
+  & "$bin\tests\FakeObsTest.exe"; if ($LASTEXITCODE) { throw 'FakeObsTest failed' }
+  & powershell -NoProfile -ExecutionPolicy Bypass -File 'tests\SetupTest.ps1' -Setup "$bin\ReplayOBS-Setup.exe"; if ($LASTEXITCODE) { throw 'SetupTest failed' }
+  if ($Desktop) {
+   Compile "$bin\tests\PrivacyTest.exe" exe @("/reference:$fw\System.Windows.Forms.dll", "/reference:$fw\System.Drawing.dll", "/reference:$fw\WPF\WindowsBase.dll") @('tests\PrivacyTest.cs', "$ov\Privacy.cs")
+   & "$bin\tests\PrivacyTest.exe"; if ($LASTEXITCODE) { throw 'PrivacyTest failed' }
+  }
+ }
+} finally { Pop-Location }
