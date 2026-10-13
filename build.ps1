@@ -28,7 +28,7 @@ try {
  $ov = 'src\Overlay'
  $common = "$ov\ObsConfig.cs", "$ov\ObsClient.cs"
  Compile "$bin\ReplayOverlay.exe" winexe (@("/win32manifest:$ov\app.manifest", '/win32icon:assets\icon.ico', "/resource:$ov\Overlay.xaml,Overlay.xaml") + $sys + $wpf) `
-  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Diagnostics.cs", "$ov\Program.cs"))
+  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Diagnostics.cs", "$ov\Games.cs", "$ov\Program.cs"))
  Compile "$bin\ReplayOBS-Setup.exe" winexe (@('/win32manifest:src\Setup\setup.manifest', '/win32icon:assets\icon.ico', '/resource:src\Setup\Setup.xaml,Setup.xaml', '/resource:assets\icon.png,icon.png', "/resource:$bin\ReplayOverlay.exe,payload.ReplayOverlay.exe") + $sys + $wpf) `
   (@('src\Setup\AssemblyInfo.cs', 'src\Setup\Setup.cs') + $common)
 
@@ -38,6 +38,8 @@ try {
   & "$bin\tests\FakeObsTest.exe"; if ($LASTEXITCODE) { throw 'FakeObsTest failed' }
   Compile "$bin\tests\DiagnosticsTest.exe" exe @() @('tests\DiagnosticsTest.cs', "$ov\Diagnostics.cs")
   & "$bin\tests\DiagnosticsTest.exe"; if ($LASTEXITCODE) { throw 'DiagnosticsTest failed' }
+  Compile "$bin\tests\GamesTest.exe" exe @("/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll", "/reference:$fw\WPF\WindowsBase.dll") (@('tests\GamesTest.cs', "$ov\Games.cs") + $common)
+  & "$bin\tests\GamesTest.exe"; if ($LASTEXITCODE) { throw 'GamesTest failed' }
   & powershell -NoProfile -ExecutionPolicy Bypass -File 'tests\SetupTest.ps1' -Setup "$bin\ReplayOBS-Setup.exe"; if ($LASTEXITCODE) { throw 'SetupTest failed' }
   if ($Desktop) {
    Compile "$bin\tests\PrivacyTest.exe" exe @("/reference:$fw\System.Windows.Forms.dll", "/reference:$fw\System.Drawing.dll", "/reference:$fw\WPF\WindowsBase.dll") @('tests\PrivacyTest.cs', "$ov\Privacy.cs")

@@ -26,7 +26,7 @@
   <Style TargetType="ScrollBar"><Setter Property="Width" Value="7"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar"><Grid Background="#171B1F"><Track x:Name="PART_Track" IsDirectionReversed="True"><Track.DecreaseRepeatButton><RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/></Track.DecreaseRepeatButton><Track.Thumb><Thumb><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="#536147" CornerRadius="3" Margin="1"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb><Track.IncreaseRepeatButton><RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/></Track.IncreaseRepeatButton></Track></Grid></ControlTemplate></Setter.Value></Setter></Style>
 
   <Style TargetType="TextBox"><Setter Property="Height" Value="36"/><Setter Property="Padding" Value="9,6"/><Setter Property="FontSize" Value="14"/><Setter Property="Foreground" Value="#F4F5F6"/><Setter Property="Background" Value="#292E34"/><Setter Property="BorderBrush" Value="#40474F"/><Setter Property="Margin" Value="0,7,0,0"/></Style>
-  <Style TargetType="CheckBox"><Setter Property="Foreground" Value="#E6EBDD"/><Setter Property="FontSize" Value="13"/><Setter Property="Margin" Value="0,0,0,10"/><Setter Property="Cursor" Value="Hand"/></Style>
+  <Style TargetType="CheckBox"><Setter Property="Foreground" Value="#E6EBDD"/><Setter Property="FontSize" Value="13"/><Setter Property="Margin" Value="0,0,0,10"/><Setter Property="Cursor" Value="Hand"/><Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate></Setter.Value></Setter></Style>
   <Style x:Key="Label" TargetType="TextBlock"><Setter Property="Foreground" Value="#A5ADB7"/><Setter Property="FontSize" Value="12"/></Style>
  </Window.Resources>
  <Border Background="#FA111316" BorderBrush="#39432F" BorderThickness="0,0,1,0" Padding="20">
@@ -51,6 +51,7 @@
       <Button x:Name="ModeGameButton" Padding="8,11" Background="#1D2227" ToolTip="Записывать только окно игры"><StackPanel><TextBlock Text="Только игра" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center"/><TextBlock Text="Alt+Tab не виден" FontSize="11" Foreground="#A5ADB7" HorizontalAlignment="Center" Margin="0,3,0,0"/></StackPanel></Button>
       <Button x:Name="ModeDesktopButton" Grid.Column="2" Padding="8,11" Background="#1D2227" ToolTip="Записывать весь монитор, кроме исключённых приложений"><StackPanel><TextBlock Text="Игра и экран" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center"/><TextBlock Text="видно весь монитор" FontSize="11" Foreground="#A5ADB7" HorizontalAlignment="Center" Margin="0,3,0,0"/></StackPanel></Button>
      </Grid>
+     <TextBlock x:Name="GameLabel" Text="" FontSize="12" Foreground="#9ADB45" Margin="0,0,0,6" Visibility="Collapsed"/>
      <TextBlock x:Name="ModeHint" Text="" FontSize="11" Foreground="#8E99A4" TextWrapping="Wrap" Margin="0,0,0,6"/>
      <TextBlock x:Name="PrivacyLabel" Text="" FontSize="11" Foreground="#8E99A4" TextWrapping="Wrap" Margin="0,0,0,6" Visibility="Collapsed"/>
      <Border Height="10"/>
@@ -78,6 +79,27 @@
      <Button x:Name="ApplyButton" Content="Применить настройки" Padding="14,9" Background="#343C28" Foreground="#C6E8A3"/>
     </StackPanel>
    </Grid>
+   <StackPanel Margin="0,12,0,12">
+    <TextBlock Text="Игры" FontSize="16" FontWeight="SemiBold"/>
+    <TextBlock x:Name="GameState" Text="" TextWrapping="Wrap" Style="{StaticResource Label}" Margin="0,6,0,10"/>
+    <CheckBox x:Name="AutoGamesBox" Content="Находить игры и захватывать их окно" ToolTip="Работает в полноэкранном, оконном и безрамочном режимах"/>
+    <TextBlock Text="При запуске игры" Style="{StaticResource Label}"/>
+    <ComboBox x:Name="GameActionBox"><ComboBoxItem Content="Переключать на «Только игра»" Tag="game"/><ComboBoxItem Content="Переключать на «Игра и экран»" Tag="desktop"/><ComboBoxItem Content="Не менять сцену" Tag="none"/></ComboBox>
+    <CheckBox x:Name="GameRestoreBox" Content="После закрытия игры вернуть прежнюю сцену и захват" Margin="0,12,0,12"/>
+    <TextBlock Text="Мои игры" Style="{StaticResource Label}" Margin="0,0,0,6"/>
+    <StackPanel x:Name="GameList"/>
+    <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+     <ComboBox x:Name="GameAppBox" Margin="0" ToolTip="Запущенные программы"/>
+     <Button x:Name="AddGameButton" Grid.Column="2" Content="Добавить" Padding="13,8" FontSize="12"/>
+    </Grid>
+    <TextBlock Text="Не считать играми" Style="{StaticResource Label}" Margin="0,14,0,6"/>
+    <StackPanel x:Name="NotGameList"/>
+    <Grid Margin="0,2,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+     <ComboBox x:Name="NotGameAppBox" Margin="0" ToolTip="Запущенные программы"/>
+     <Button x:Name="AddNotGameButton" Grid.Column="2" Content="Добавить" Padding="13,8" FontSize="12"/>
+    </Grid>
+    <TextBlock Text="Игрой считается программа из «Моих игр», из папки Steam, Epic, Riot, GOG, Ubisoft, EA или Xbox, а также полноэкранное 3D-окно. Браузеры, плееры, мессенджеры и лаунчеры игрой не считаются. Alt+Tab игру не «отпускает»: она активна, пока запущена." TextWrapping="Wrap" FontSize="11" Foreground="#7F8A96" Margin="0,8,0,0"/>
+   </StackPanel>
    <StackPanel Margin="0,12,0,12">
     <TextBlock Text="Не записывать приложения" FontSize="16" FontWeight="SemiBold"/>
     <TextBlock Text="В режиме «Игра и экран», пока окно такого приложения видно на мониторе (в том числе в Alt+Tab), захват экрана выключается — в записи остаётся только игра." TextWrapping="Wrap" Style="{StaticResource Label}" Margin="0,6,0,10"/>
