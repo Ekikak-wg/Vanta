@@ -51,6 +51,16 @@ namespace ReplayOverlay {
    return Path.Combine(Root,@"basic\scenes",file);
   }
 
+  // После сбоя OBS при запуске спрашивает про безопасный режим модальным окном; запущенный в трее OBS на нём зависает
+  // (флаг --disable-shutdown-check это окно не отключает). Признак сбоя — файлы .sentinel\run_*.
+  // Вызывать только когда OBS не запущен: тогда все эти файлы устаревшие. Возвращает число удалённых.
+  public static int ClearCrashSentinels() {
+   string dir=Path.Combine(Root,".sentinel"); int removed=0;
+   if(!Directory.Exists(dir))return 0;
+   foreach(string f in Directory.GetFiles(dir,"run_*")){try{File.Delete(f);removed++;}catch{}}
+   return removed;
+  }
+
   public static string Executable() {
    try {
     using(var key=RegistryKey.OpenBaseKey(RegistryHive.LocalMachine,RegistryView.Registry64).OpenSubKey(@"SOFTWARE\OBS Studio")) {

@@ -26,6 +26,7 @@
   <Style TargetType="ScrollBar"><Setter Property="Width" Value="7"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar"><Grid Background="#171B1F"><Track x:Name="PART_Track" IsDirectionReversed="True"><Track.DecreaseRepeatButton><RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/></Track.DecreaseRepeatButton><Track.Thumb><Thumb><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="#536147" CornerRadius="3" Margin="1"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb><Track.IncreaseRepeatButton><RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/></Track.IncreaseRepeatButton></Track></Grid></ControlTemplate></Setter.Value></Setter></Style>
 
   <Style TargetType="TextBox"><Setter Property="Height" Value="36"/><Setter Property="Padding" Value="9,6"/><Setter Property="FontSize" Value="14"/><Setter Property="Foreground" Value="#F4F5F6"/><Setter Property="Background" Value="#292E34"/><Setter Property="BorderBrush" Value="#40474F"/><Setter Property="Margin" Value="0,7,0,0"/></Style>
+  <Style TargetType="CheckBox"><Setter Property="Foreground" Value="#E6EBDD"/><Setter Property="FontSize" Value="13"/><Setter Property="Margin" Value="0,0,0,10"/><Setter Property="Cursor" Value="Hand"/></Style>
   <Style x:Key="Label" TargetType="TextBlock"><Setter Property="Foreground" Value="#A5ADB7"/><Setter Property="FontSize" Value="12"/></Style>
  </Window.Resources>
  <Border Background="#FA111316" BorderBrush="#39432F" BorderThickness="0,0,1,0" Padding="20">
@@ -38,6 +39,7 @@
    </Grid>
    <StackPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
     <TextBlock x:Name="MessageLabel" Text="Запись выполняется в OBS" FontSize="12" Foreground="#C4CCD4" TextTrimming="CharacterEllipsis"/>
+    <TextBlock x:Name="HealthLabel" Text="" FontSize="11" Foreground="#7F8A96" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
     <TextBlock x:Name="FormatLabel" Text="" FontSize="11" Foreground="#7F8A96" Margin="0,5,0,0"/>
    </StackPanel>
    <ScrollViewer x:Name="PageScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
@@ -85,6 +87,13 @@
      <Button x:Name="AddAppButton" Grid.Column="2" Content="Добавить" Padding="13,8" FontSize="12"/>
     </Grid>
     <TextBlock Text="Звук этих приложений по-прежнему попадает в дорожку «Рабочий стол»." TextWrapping="Wrap" FontSize="11" Foreground="#7F8A96" Margin="0,8,0,0"/>
+   </StackPanel>
+   <StackPanel Margin="0,12,0,12">
+    <TextBlock Text="Фоновая работа" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+    <CheckBox x:Name="LaunchObsBox" Content="Запускать OBS вместе с меню (свёрнутым в трей)" ToolTip="Если OBS упадёт, меню запустит его снова"/>
+    <CheckBox x:Name="KeepReplayBox" Content="Держать мгновенный повтор включённым" ToolTip="После перезапуска OBS буфер включится сам. Если выключить его вручную — меню не трогает"/>
+    <CheckBox x:Name="DiagnosticsBox" Content="Предупреждать о пропуске кадров и нехватке места"/>
+    <Button x:Name="LogButton" Content="Открыть журнал" HorizontalAlignment="Left" Padding="13,8" FontSize="12" Margin="0,2,0,0"/>
    </StackPanel>
    <StackPanel x:Name="HotkeySection" Margin="0,12,0,12">
     <TextBlock Text="Горячие клавиши" FontSize="16" FontWeight="SemiBold"/>

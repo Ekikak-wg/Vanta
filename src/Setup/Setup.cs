@@ -38,7 +38,7 @@ namespace ReplaySetup {
   }
  }
 
- sealed class Options { public bool WebSocket=true,Autostart=true,Desktop,Launch=true; }
+ sealed class Options { public bool WebSocket=true,Autostart=true,Desktop,Launch=true,LaunchObs=true; }
 
  static class Installer {
   public static string Version { get { return Assembly.GetExecutingAssembly().GetName().Version.ToString(3); } }
@@ -101,6 +101,11 @@ namespace ReplaySetup {
    string self=Assembly.GetExecutingAssembly().Location;
    if(!string.Equals(Path.GetFullPath(self),Path.GetFullPath(p.Uninstaller),StringComparison.OrdinalIgnoreCase))File.Copy(self,p.Uninstaller,true);
    log.Add("Меню установлено: "+p.InstallDir);
+   // Настройка меню «запускать OBS вместе с меню»; остальные его настройки при обновлении сохраняются.
+   string prefs=Path.Combine(p.InstallDir,"overlay-settings.json");
+   var cfg=File.Exists(prefs)?Json.Decode(File.ReadAllText(prefs)):new Dictionary<string,object>();
+   cfg["launchObs"]=o.LaunchObs; File.WriteAllText(prefs,Json.Encode(cfg),new System.Text.UTF8Encoding(false));
+   log.Add(o.LaunchObs?"OBS будет запускаться вместе с меню (в трее)":"OBS запускается вручную");
 
    Directory.CreateDirectory(p.StartMenuDir);
    Shortcut(Path.Combine(p.StartMenuDir,"Replay Overlay.lnk"),p.Exe,"","Меню повторов OBS");
@@ -186,7 +191,7 @@ namespace ReplaySetup {
   void Busy(bool on) { foreach(string n in new[]{"InstallButton","UninstallButton","CloseButton","Options"})C<FrameworkElement>(n).IsEnabled=!on; }
 
   async void Install() {
-   var o=new Options{WebSocket=C<CheckBox>("SocketBox").IsChecked==true,Autostart=C<CheckBox>("AutostartBox").IsChecked==true,Desktop=C<CheckBox>("DesktopBox").IsChecked==true,Launch=C<CheckBox>("LaunchBox").IsChecked==true};
+   var o=new Options{WebSocket=C<CheckBox>("SocketBox").IsChecked==true,Autostart=C<CheckBox>("AutostartBox").IsChecked==true,Desktop=C<CheckBox>("DesktopBox").IsChecked==true,Launch=C<CheckBox>("LaunchBox").IsChecked==true,LaunchObs=C<CheckBox>("ObsLaunchBox").IsChecked==true};
    int port; if(o.WebSocket&&Installer.WebSocketEnabled(paths,out port)!=true) {
     while(Installer.IsObsRunning()) {
      var r=MessageBox.Show(w,"Чтобы включить WebSocket, закройте OBS Studio и нажмите «Повторить».\n\n«Отмена» — установить без этого шага (включить можно в OBS: Сервис → Настройки WebSocket-сервера).","Replay OBS",MessageBoxButton.OKCancel,MessageBoxImage.Information);
@@ -210,7 +215,7 @@ namespace ReplaySetup {
 
  static class Program {
   [DllImport("kernel32.dll")] static extern bool AttachConsole(int processId);
-  // Ключи: --uninstall, --silent, --test-root <папка>, --no-websocket, --no-autostart, --desktop, --no-launch.
+  // Ключи: --uninstall, --silent, --test-root <папка>, --no-websocket, --no-autostart, --no-obs-launch, --desktop, --no-launch.
   [STAThread] static int Main(string[] args) {
    var list=args.ToList(); int at=list.IndexOf("--test-root");
    var paths=at>=0&&at+1<list.Count?Paths.ForTest(list[at+1]):Paths.Real();
@@ -219,7 +224,7 @@ namespace ReplaySetup {
     AttachConsole(-1); // вывод в консоль, из которой запущен тихий режим
     try {
      if(uninstall){Installer.Uninstall(paths);Console.WriteLine("removed");return 0;}
-     var o=new Options{WebSocket=!list.Contains("--no-websocket"),Autostart=!list.Contains("--no-autostart"),Desktop=list.Contains("--desktop"),Launch=!list.Contains("--no-launch")};
+     var o=new Options{WebSocket=!list.Contains("--no-websocket"),Autostart=!list.Contains("--no-autostart"),Desktop=list.Contains("--desktop"),Launch=!list.Contains("--no-launch"),LaunchObs=!list.Contains("--no-obs-launch")};
      if(o.WebSocket&&Installer.IsObsRunning()&&!paths.Test){o.WebSocket=false;Console.WriteLine("OBS запущен — WebSocket не изменён");}
      foreach(string line in Installer.Install(paths,o))Console.WriteLine(line);
      return 0;

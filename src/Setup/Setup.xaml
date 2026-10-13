@@ -33,6 +33,7 @@
   <StackPanel x:Name="Options" Margin="0,18,0,0">
    <CheckBox x:Name="SocketBox" IsChecked="True" Content="Включить WebSocket-сервер OBS (нужен меню; пароль создаётся случайно)"/>
    <CheckBox x:Name="AutostartBox" IsChecked="True" Content="Запускать меню вместе с Windows (в трее, без окна)"/>
+   <CheckBox x:Name="ObsLaunchBox" IsChecked="True" Content="Запускать OBS вместе с меню (свёрнутым в трей) и перезапускать после сбоя"/>
    <CheckBox x:Name="DesktopBox" IsChecked="False" Content="Ярлык на рабочем столе"/>
    <CheckBox x:Name="LaunchBox" IsChecked="True" Content="Открыть меню после установки"/>
    <TextBlock Style="{StaticResource Hint}" Text="Профили, сцены и настройки записи OBS установщик не меняет. Буфер повтора включается в OBS: Настройки → Вывод → Буфер повтора."/>

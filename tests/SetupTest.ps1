@@ -33,9 +33,14 @@ try {
  Check ($ws.server_password -eq 'keep-this-pass' -and $ws.server_port -eq 4460) 'websocket: existing password and port kept'
  Check (Test-Path (Join-Path $wsDir 'config.json.replay-obs.bak')) 'websocket: backup of previous config'
  $hash = (Get-FileHash (Join-Path $install 'ReplayOverlay.exe')).Hash
+ $prefsFile = Join-Path $install 'overlay-settings.json'
+ Check ((Get-Content $prefsFile -Raw | ConvertFrom-Json).launchObs -eq $true) 'install: overlay will launch OBS by default'
+ '{"launchObs":true,"excluded":["Telegram"]}' | Set-Content -Encoding ASCII $prefsFile
 
  # 2. Update over the existing install with other options.
- Check ((Run @('--no-autostart', '--desktop')) -eq 0) 'update: exit code 0'
+ Check ((Run @('--no-autostart', '--desktop', '--no-obs-launch')) -eq 0) 'update: exit code 0'
+ $prefs = Get-Content $prefsFile -Raw | ConvertFrom-Json
+ Check ($prefs.launchObs -eq $false -and $prefs.excluded[0] -eq 'Telegram') 'update: launchObs switched off, other overlay settings kept'
  Check ($null -eq (Get-ItemProperty "$reg\Run" -ErrorAction SilentlyContinue).'Replay Overlay') 'update: autostart removed'
  Check (Test-Path (Join-Path $root 'Desktop\Replay Overlay.lnk')) 'update: desktop shortcut created'
  Check ((Get-FileHash (Join-Path $install 'ReplayOverlay.exe')).Hash -eq $hash) 'update: same overlay binary'
