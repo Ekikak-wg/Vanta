@@ -35,7 +35,7 @@ namespace ReplayOverlay {
   }
 
   // Файл ещё пишется (OBS держит его открытым на запись) — трогать нельзя.
-  public static bool InUse(string path){try{using(new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read)){}return false;}catch(IOException){return true;}catch(UnauthorizedAccessException){return true;}}
+  public static bool InUse(string path){if(!File.Exists(path))return false;try{using(new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read)){}return false;}catch(IOException){return true;}catch(UnauthorizedAccessException){return true;}}
 
   static readonly string[] Reserved={"CON","PRN","AUX","NUL","COM1","COM2","COM3","COM4","COM5","COM6","COM7","COM8","COM9","LPT1","LPT2","LPT3","LPT4","LPT5","LPT6","LPT7","LPT8","LPT9"};
   // null — имя подходит; иначе — чем не подходит.
@@ -52,6 +52,7 @@ namespace ReplayOverlay {
   // Переименовать, сохранив расширение. Возвращает новый путь.
   public static string Rename(string path,string newName) {
    string error=CheckName(newName);if(error!=null)throw new InvalidOperationException(error);
+   if(!File.Exists(path))throw new InvalidOperationException("Файла уже нет — список обновлён");
    newName=newName.Trim();string target=System.IO.Path.Combine(System.IO.Path.GetDirectoryName(path),newName+System.IO.Path.GetExtension(path));
    if(target==path)return path;
    bool sameFile=string.Equals(target,path,StringComparison.OrdinalIgnoreCase); // меняется только регистр букв
@@ -68,6 +69,7 @@ namespace ReplayOverlay {
 
   // Удаление — только в Корзину: клип можно вернуть.
   public static void Recycle(string path) {
+   if(!File.Exists(path))throw new InvalidOperationException("Файла уже нет — список обновлён");
    if(InUse(path))throw new InvalidOperationException("Файл ещё пишется или открыт другой программой");
    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path,Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
   }

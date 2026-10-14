@@ -551,7 +551,22 @@ namespace ReplayOverlay {
    await Refresh();
   }
   void Notify(string title,string detail){if(exiting)return;if(toast!=null)toast.Close();if(toastTimer!=null)toastTimer.Stop();var text=new StackPanel();text.Children.Add(new TextBlock{Text=title,Foreground=Brush("#B9EB79"),FontSize=15,FontWeight=FontWeights.SemiBold});text.Children.Add(new TextBlock{Text=detail,Foreground=Brush("#BCC6D0"),FontSize=11,Margin=new Thickness(0,7,0,0),TextWrapping=TextWrapping.Wrap});toast=new Window{Title="Replay — уведомление",Width=360,SizeToContent=SizeToContent.Height,WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,AllowsTransparency=true,Background=Brush("Transparent"),Topmost=true,ShowInTaskbar=false,ShowActivated=false,Content=new Border{Background=Brush("#F51A1E23"),BorderBrush=Brush("#536439"),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(10),Padding=new Thickness(18),Child=text}};toast.SourceInitialized+=(s,e)=>{if(!preview)Native.SetWindowDisplayAffinity(new WindowInteropHelper(toast).Handle,0x11);};toast.Left=SystemParameters.WorkArea.Right-toast.Width-24;toast.Top=SystemParameters.WorkArea.Top+24;toast.Show();toastTimer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(detail.Length>60?7:3.5)};toastTimer.Tick+=(s,e)=>{toastTimer.Stop();if(toast!=null){toast.Close();toast=null;}};toastTimer.Start();}
-  public void Exit(){if(exiting)return;statsTimer.Stop();sessionTimer.Stop();indicatorTimer.Stop();if(indicator!=null)indicator.Dispose();if(clipLoader!=null)clipLoader.Dispose();if(trimCancel!=null)trimCancel.Cancel();ClosePlayer();gamesWatch.Dispose();Log.Write("Меню закрыто");privacy.Dispose();RestoreHiddenNow();exiting=true;clock.Stop();if(toastTimer!=null)toastTimer.Stop();if(toast!=null)toast.Close();UnregisterHotkeys();obs.Dispose();tray.Visible=false;tray.Dispose();Application.Current.Shutdown();}
+  // Выход по любому пути (меню трея, событие выхода, завершение сеанса Windows): каждый шаг отдельно — сбой одного не мешает остальным.
+  bool exitStarting;
+  public void Exit(){if(exiting||exitStarting)return;exitStarting=true;Log.Write("Меню закрыто");
+   foreach(var step in new KeyValuePair<string,Action>[]{
+    new KeyValuePair<string,Action>("таймеры",()=>{statsTimer.Stop();sessionTimer.Stop();indicatorTimer.Stop();clock.Stop();if(toastTimer!=null)toastTimer.Stop();}),
+    new KeyValuePair<string,Action>("индикатор",()=>{if(indicator!=null)indicator.Dispose();}),
+    new KeyValuePair<string,Action>("клипы",()=>{if(clipLoader!=null)clipLoader.Dispose();if(trimCancel!=null)trimCancel.Cancel();ClosePlayer();}),
+    new KeyValuePair<string,Action>("игры",()=>gamesWatch.Dispose()),
+    new KeyValuePair<string,Action>("приватность",()=>{privacy.Dispose();RestoreHiddenNow();}),
+    new KeyValuePair<string,Action>("уведомление",()=>{exiting=true;if(toast!=null)toast.Close();}),
+    new KeyValuePair<string,Action>("клавиши",UnregisterHotkeys),
+    new KeyValuePair<string,Action>("OBS",()=>obs.Dispose()),
+    new KeyValuePair<string,Action>("трей",()=>{tray.Visible=false;tray.Dispose();}),
+    new KeyValuePair<string,Action>("приложение",()=>{if(Application.Current!=null)Application.Current.Shutdown();})})
+   {try{step.Value();}catch(Exception ex){Log.Write("Выход ("+step.Key+"): "+ex.GetType().Name+": "+ex.Message);}}
+   exiting=true;}
  }
  public static class Program {
   [STAThread] public static void Main(string[] args){bool fresh;using(var mutex=new Mutex(true,Names.Mutex,out fresh))using(var wake=new EventWaitHandle(false,EventResetMode.AutoReset,Names.Show))using(var quit=new EventWaitHandle(false,EventResetMode.AutoReset,Names.Exit)){

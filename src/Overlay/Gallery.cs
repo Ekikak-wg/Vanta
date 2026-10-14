@@ -72,6 +72,8 @@ namespace ReplayOverlay {
    UpdateSoundButton();}
 
   async Task OpenClipsFolder(){string dir=ClipsDir;if(dir.Length==0)throw new InvalidOperationException("Папка записей пока неизвестна: подключитесь к OBS");if(!Directory.Exists(dir))throw new DirectoryNotFoundException("Папка записей пока не создана");Process.Start(new ProcessStartInfo("explorer.exe","\""+dir.Replace("\"","")+"\""){UseShellExecute=true});await Task.FromResult(0);}
+  // Файл удалили или переименовали мимо меню — обновляем список.
+  void EnsureClipExists(ClipFile c){if(File.Exists(c.Path))return;CloseDetail();LoadClipsSelect(null);throw new InvalidOperationException("Файла уже нет — список обновлён");}
   ClipFile SelectedOrThrow(){if(selectedClip==null)throw new InvalidOperationException("Выберите клип");return selectedClip;}
 
   // Перечитать папку (после сохранения повтора, обрезки, переименования). Выбранный клип остаётся выбранным.
@@ -161,7 +163,7 @@ namespace ReplayOverlay {
   // Обрезка — в новый файл рядом, исходный не трогаем. Повторное нажатие — отмена.
   async Task TrimClip(){
    if(trimBusy){if(trimCancel!=null)trimCancel.Cancel();return;}
-   var c=SelectedOrThrow();string ff=FindFfmpeg();
+   var c=SelectedOrThrow();EnsureClipExists(c);string ff=FindFfmpeg();
    if(ff==null){C<FrameworkElement>("FfmpegPanel").Visibility=Visibility.Visible;throw new InvalidOperationException("Для обрезки нужен ffmpeg — см. подсказку ниже");}
    if(clipLength<=0)throw new InvalidOperationException("Длительность клипа неизвестна");
    if(trimEnd-trimStart<0.5)throw new InvalidOperationException("Отрезок короче 0,5 с");
@@ -190,13 +192,14 @@ namespace ReplayOverlay {
 
   async Task RenameClip(){
    var c=SelectedOrThrow();string name=C<TextBox>("RenameBox").Text;string error=ClipLibrary.CheckName(name);if(error!=null)throw new InvalidOperationException(error);
-   if(name.Trim()==c.Name)return;
+   if(name.Trim()==c.Name)return;EnsureClipExists(c);
    ClosePlayer();string target=await WithFileRetry(()=>ClipLibrary.Rename(c.Path,name));
    Log.Write("Клип переименован: "+Path.GetFileName(c.Path)+" → "+Path.GetFileName(target));Message("Переименовано: "+Path.GetFileName(target));
    LoadClipsSelect(target);}
 
   async Task DeleteClip(){
-   var c=SelectedOrThrow();MessageBoxResult ok;dialogOpen=true;
+   if(dialogOpen)return; // вопрос уже открыт
+   var c=SelectedOrThrow();EnsureClipExists(c);MessageBoxResult ok;dialogOpen=true;
    try{ok=MessageBox.Show(window,"Переместить «"+c.Name+c.Extension+"» в Корзину?\nЕго можно будет восстановить из Корзины.","Replay — клипы",MessageBoxButton.OKCancel,MessageBoxImage.Question);}
    finally{dialogOpen=false;window.Activate();}
    if(ok!=MessageBoxResult.OK)return;
