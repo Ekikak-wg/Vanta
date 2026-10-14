@@ -33,6 +33,7 @@ try {
   (@('src\Setup\AssemblyInfo.cs', 'src\Setup\Setup.cs') + $common)
 
  Compile "$bin\AvSyncCheck.exe" exe @("/reference:$fw\System.Windows.Forms.dll", "/reference:$fw\System.Drawing.dll", "/reference:$fw\System.Core.dll") @('tools\AvSyncCheck.cs')
+ Compile "$bin\PrivacyLeakTest.exe" exe @("/reference:$fw\System.Windows.Forms.dll", "/reference:$fw\System.Drawing.dll", "/reference:$fw\System.Core.dll") @('tools\PrivacyLeakTest.cs')
 
  if ($Test) {
   [Console]::OutputEncoding = [Text.Encoding]::UTF8
@@ -44,10 +45,14 @@ try {
   & "$bin\tests\GamesTest.exe"; if ($LASTEXITCODE) { throw 'GamesTest failed' }
   Compile "$bin\tests\AudioTest.exe" exe @("/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll", "/reference:$fw\WPF\WindowsBase.dll") (@('tests\AudioTest.cs', "$ov\Audio.cs", "$ov\Games.cs") + $common)
   & "$bin\tests\AudioTest.exe"; if ($LASTEXITCODE) { throw 'AudioTest failed' }
+  Compile "$bin\tests\PrivacyRulesTest.exe" exe @("/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll", "/reference:$fw\WPF\WindowsBase.dll", "/reference:$fw\System.Windows.Forms.dll") (@('tests\PrivacyRulesTest.cs', "$ov\Privacy.cs") + $common)
+  & "$bin\tests\PrivacyRulesTest.exe"; if ($LASTEXITCODE) { throw 'PrivacyRulesTest failed' }
   & powershell -NoProfile -ExecutionPolicy Bypass -File 'tests\SetupTest.ps1' -Setup "$bin\ReplayOBS-Setup.exe"; if ($LASTEXITCODE) { throw 'SetupTest failed' }
   if ($Desktop) {
-   Compile "$bin\tests\PrivacyTest.exe" exe @("/reference:$fw\System.Windows.Forms.dll", "/reference:$fw\System.Drawing.dll", "/reference:$fw\WPF\WindowsBase.dll") @('tests\PrivacyTest.cs', "$ov\Privacy.cs")
+   Compile "$bin\tests\PrivacyTest.exe" exe @("/reference:$fw\System.Windows.Forms.dll", "/reference:$fw\System.Drawing.dll", "/reference:$fw\WPF\WindowsBase.dll", "/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll") @('tests\PrivacyTest.cs', "$ov\Privacy.cs", "$ov\ObsClient.cs", "$ov\ObsConfig.cs")
    & "$bin\tests\PrivacyTest.exe"; if ($LASTEXITCODE) { throw 'PrivacyTest failed' }
+   Compile "$bin\tests\PrivacyLatencyTest.exe" exe @("/reference:$fw\System.Windows.Forms.dll", "/reference:$fw\System.Drawing.dll", "/reference:$fw\WPF\WindowsBase.dll", "/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll") @('tests\PrivacyLatencyTest.cs', "$ov\Privacy.cs", "$ov\ObsClient.cs", "$ov\ObsConfig.cs")
+   & "$bin\tests\PrivacyLatencyTest.exe"; if ($LASTEXITCODE) { throw 'PrivacyLatencyTest failed' }
   }
  }
 } finally { Pop-Location }

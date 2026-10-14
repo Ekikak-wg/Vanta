@@ -79,6 +79,10 @@ static class GamesTest {
   s2.Restore(obs2.Scene, true).Wait();
   Check(obs2.Scene == "01 · Экран", "сцену, выбранную вручную во время игры, не возвращаем");
 
+  var obs3 = new FakeObs(); obs3.Scene = "02 · Игра"; var s3 = new GameSession(obs3.Call) { SceneBefore = "", SceneByGame = "02 · Игра" };
+  int calls3 = obs3.Calls.Count; s3.Restore(obs3.Scene, true).Wait();
+  Check(obs3.Scene == "02 · Игра" && !obs3.Calls.Skip(calls3).Contains("SetCurrentProgramScene"), "пустая «сцена до игры» (из старых настроек) — сцену не переключаем");
+
   Console.WriteLine(failures == 0 ? "ИТОГ: все проверки пройдены" : "ИТОГ: провалов " + failures);
   return failures == 0 ? 0 : 1;
  }

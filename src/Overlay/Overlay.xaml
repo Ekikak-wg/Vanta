@@ -132,6 +132,10 @@
      <ComboBox x:Name="AppBox" Margin="0" ToolTip="Запущенные приложения с окнами"/>
      <Button x:Name="AddAppButton" Grid.Column="2" Content="Добавить" Padding="13,8" FontSize="12"/>
     </Grid>
+    <CheckBox x:Name="NotifyBox" Content="Скрывать всплывающие уведомления Windows" Margin="0,12,0,8" ToolTip="Уведомления рисует сама Windows, а не приложение — исключение приложения их не скрывает"/>
+    <CheckBox x:Name="StrictBox" Content="Строгая защита: экран с задержкой 100 мс — ни одного кадра скрытых окон"/>
+    <TextBlock Text="Строгая защита сдвигает и звук всех источников на 100 мс, чтобы он не опережал картинку. В режиме «Только игра» звук будет отставать на 100 мс — на слух это незаметно. Без неё в запись могут попасть 1–2 кадра появившегося окна." TextWrapping="Wrap" FontSize="11" Foreground="#7F8A96" Margin="0,0,0,8"/>
+    <TextBlock x:Name="PrivacyWarnings" Text="" TextWrapping="Wrap" FontSize="11" Foreground="#F2C46D" Margin="0,0,0,8" Visibility="Collapsed"/>
     <TextBlock Text="Это скрывает только картинку. Чтобы не записывать и звук этих программ, выберите в разделе «Звук» режим «Весь звук, кроме выбранных»." TextWrapping="Wrap" FontSize="11" Foreground="#7F8A96" Margin="0,8,0,0"/>
    </StackPanel>
    <StackPanel Margin="0,12,0,12">

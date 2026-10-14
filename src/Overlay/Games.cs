@@ -102,7 +102,7 @@ namespace ReplayOverlay {
    set {
     if(value==enabled)return; enabled=value;
     if(value){hook=SetWinEventHook(3,3,IntPtr.Zero,proc,0,0,2);alive.Start();Check();} // EVENT_SYSTEM_FOREGROUND, вне процесса
-    else{if(hook!=IntPtr.Zero)UnhookWinEvent(hook);hook=IntPtr.Zero;alive.Stop();settle.Stop();if(Current!=null)End();}
+    else{if(hook!=IntPtr.Zero)UnhookWinEvent(hook);hook=IntPtr.Zero;alive.Stop();settle.Stop();Current=null;if(gameHandle!=IntPtr.Zero){CloseHandle(gameHandle);gameHandle=IntPtr.Zero;}} // выключение — не конец игры: событие Stopped не шлём
    }
   }
   public void Recheck(){if(enabled)Check();}
@@ -182,7 +182,7 @@ namespace ReplayOverlay {
   // Возврат: сцена — если её с тех пор не меняли; захват — к прежним настройкам (ключи, которых не было, удаляются).
   public async Task<List<string>> Restore(string current,bool scene) {
    var log=new List<string>();
-   if(scene&&SceneByGame!=null&&SceneBefore!=null&&current==SceneByGame){await call("SetCurrentProgramScene",Json.D("sceneName",SceneBefore));log.Add("сцена возвращена: "+SceneBefore);}
+   if(scene&&!string.IsNullOrEmpty(SceneByGame)&&!string.IsNullOrEmpty(SceneBefore)&&current==SceneByGame){await call("SetCurrentProgramScene",Json.D("sceneName",SceneBefore));log.Add("сцена возвращена: "+SceneBefore);}
    foreach(var pair in Backup.ToList()) {
     try {
      var r=await call("GetInputSettings",Json.D("inputName",pair.Key)); var s=Json.Obj(r.ContainsKey("inputSettings")?r["inputSettings"]:null);
