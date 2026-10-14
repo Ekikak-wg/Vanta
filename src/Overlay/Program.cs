@@ -144,7 +144,10 @@ namespace ReplayOverlay {
    Message(k==null?"Сочетание убрано":busyKey?k+" занято другой программой — выберите другое":k+" назначено"+(moved!=null?" (снято с действия «"+moved+"»)":""));}
   void Position(){var screen=WF.Screen.FromHandle(Native.GetForegroundWindow());var transform=PresentationSource.FromVisual(window);double dx=1,dy=1;if(transform!=null){dx=transform.CompositionTarget.TransformFromDevice.M11;dy=transform.CompositionTarget.TransformFromDevice.M22;}var area=screen.Bounds;window.WindowState=WindowState.Normal;window.Width=Math.Min(560,area.Width*dx);window.Height=area.Height*dy;window.Left=area.Left*dx;window.Top=area.Top*dy;}
   public void Show(){Ui(()=>{if(window.IsVisible&&window.IsActive)return;var fg=Native.GetForegroundWindow();if(fg!=handle&&!window.IsVisible)previousForeground=fg;Position();window.Show();window.Activate();Native.SetForegroundWindow(handle);Run(Refresh);});}
-  void Hide(){if(!window.IsVisible)return;var back=previousForeground;previousForeground=IntPtr.Zero;window.Hide();if(back!=IntPtr.Zero&&Native.IsWindow(back))Native.SetForegroundWindow(back);}
+  // Фокус отдаём игре, пока меню ещё на переднем плане: скрытое окно уже не имеет права его передать,
+  // Windows остаётся без активного окна, и игра (Warframe) не прячет курсор даже после щелчка.
+  void Hide(){if(!window.IsVisible)return;var back=previousForeground;previousForeground=IntPtr.Zero;bool ok=back!=IntPtr.Zero&&Native.IsWindow(back);
+   if(ok)Native.SetForegroundWindow(back);window.Hide();if(ok&&Native.GetForegroundWindow()!=back)Native.SetForegroundWindow(back);}
   public Window Window {get{return window;}}
   public static string StartedFrom=""; // каким способом запущено: --from=run / --from=startup (для журнала)
   static System.Drawing.Icon AppIcon(){try{return System.Drawing.Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location);}catch{return System.Drawing.SystemIcons.Application;}}
