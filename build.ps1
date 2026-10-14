@@ -27,8 +27,9 @@ try {
 
  $ov = 'src\Overlay'
  $common = "$ov\ObsConfig.cs", "$ov\ObsClient.cs"
- Compile "$bin\ReplayOverlay.exe" winexe (@("/win32manifest:$ov\app.manifest", '/win32icon:assets\icon.ico', "/resource:$ov\Overlay.xaml,Overlay.xaml") + $sys + $wpf) `
-  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Diagnostics.cs", "$ov\Games.cs", "$ov\Audio.cs", "$ov\Program.cs"))
+ $vb = "/reference:$fw\Microsoft.VisualBasic.dll"
+ Compile "$bin\ReplayOverlay.exe" winexe (@("/win32manifest:$ov\app.manifest", '/win32icon:assets\icon.ico', "/resource:$ov\Overlay.xaml,Overlay.xaml", $vb) + $sys + $wpf) `
+  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Diagnostics.cs", "$ov\Games.cs", "$ov\Audio.cs", "$ov\Clips.cs", "$ov\Indicator.cs", "$ov\Gallery.cs", "$ov\Program.cs"))
  Compile "$bin\ReplayOBS-Setup.exe" winexe (@('/win32manifest:src\Setup\setup.manifest', '/win32icon:assets\icon.ico', '/resource:src\Setup\Setup.xaml,Setup.xaml', '/resource:assets\icon.png,icon.png', "/resource:$bin\ReplayOverlay.exe,payload.ReplayOverlay.exe") + $sys + $wpf) `
   (@('src\Setup\AssemblyInfo.cs', 'src\Setup\Setup.cs') + $common)
 
@@ -47,12 +48,18 @@ try {
   & "$bin\tests\AudioTest.exe"; if ($LASTEXITCODE) { throw 'AudioTest failed' }
   Compile "$bin\tests\PrivacyRulesTest.exe" exe @("/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll", "/reference:$fw\WPF\WindowsBase.dll", "/reference:$fw\System.Windows.Forms.dll") (@('tests\PrivacyRulesTest.cs', "$ov\Privacy.cs") + $common)
   & "$bin\tests\PrivacyRulesTest.exe"; if ($LASTEXITCODE) { throw 'PrivacyRulesTest failed' }
+  Compile "$bin\tests\ClipsTest.exe" exe (@($vb) + $sys + $wpf) @('tests\ClipsTest.cs', "$ov\Clips.cs", "$ov\Indicator.cs")
+  & "$bin\tests\ClipsTest.exe"; if ($LASTEXITCODE) { throw 'ClipsTest failed' }
   & powershell -NoProfile -ExecutionPolicy Bypass -File 'tests\SetupTest.ps1' -Setup "$bin\ReplayOBS-Setup.exe"; if ($LASTEXITCODE) { throw 'SetupTest failed' }
   if ($Desktop) {
    Compile "$bin\tests\PrivacyTest.exe" exe @("/reference:$fw\System.Windows.Forms.dll", "/reference:$fw\System.Drawing.dll", "/reference:$fw\WPF\WindowsBase.dll", "/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll") @('tests\PrivacyTest.cs', "$ov\Privacy.cs", "$ov\ObsClient.cs", "$ov\ObsConfig.cs")
    & "$bin\tests\PrivacyTest.exe"; if ($LASTEXITCODE) { throw 'PrivacyTest failed' }
    Compile "$bin\tests\PrivacyLatencyTest.exe" exe @("/reference:$fw\System.Windows.Forms.dll", "/reference:$fw\System.Drawing.dll", "/reference:$fw\WPF\WindowsBase.dll", "/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll") @('tests\PrivacyLatencyTest.cs', "$ov\Privacy.cs", "$ov\ObsClient.cs", "$ov\ObsConfig.cs")
    & "$bin\tests\PrivacyLatencyTest.exe"; if ($LASTEXITCODE) { throw 'PrivacyLatencyTest failed' }
+   # Clips page in a real overlay window, kept off-screen and inactive; no OBS connection, no game detection.
+   Copy-Item "$bin\ReplayOverlay.exe" "$bin\tests\" -Force
+   Compile "$bin\tests\GalleryUiTest.exe" exe (@("/reference:$bin\ReplayOverlay.exe", $vb) + $sys + $wpf) @('tests\GalleryUiTest.cs')
+   & "$bin\tests\GalleryUiTest.exe"; if ($LASTEXITCODE) { throw 'GalleryUiTest failed' }
   }
  }
 } finally { Pop-Location }

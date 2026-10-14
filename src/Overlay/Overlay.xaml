@@ -60,7 +60,7 @@
      <Button x:Name="RecordButton" Height="94" Background="#1D2227" Margin="0,0,0,10"><StackPanel><StackPanel Orientation="Horizontal"><Ellipse x:Name="RecordDot" Width="12" Height="12" Fill="#D1D7DD" Margin="0,0,10,0"/><TextBlock x:Name="RecordTitle" Text="Запись" FontSize="18" FontWeight="SemiBold"/></StackPanel><TextBlock x:Name="RecordState" Text="Не идёт" FontSize="12" Foreground="#A5ADB7" Margin="0,8,0,0"/></StackPanel></Button>
      <Button x:Name="SaveButton" Height="94" Background="#76B900" Foreground="#101609" Margin="0,0,0,18"><StackPanel><TextBlock Text="Сохранить повтор" FontSize="18" FontWeight="SemiBold"/><TextBlock x:Name="SaveHint" Text="До 5:00 · Alt+F10" FontSize="12" Margin="0,8,0,0"/></StackPanel></Button>
      <Button x:Name="SettingsButton" Content="Настройки →" Margin="0,0,0,10"/>
-     <Button x:Name="FolderButton" Content="Мои записи" Margin="0,0,0,10"/>
+     <Button x:Name="FolderButton" Content="Клипы и записи" Margin="0,0,0,10" ToolTip="Просмотр, обрезка, переименование и удаление"/>
      <Button x:Name="HotkeyButton" Content="Горячие клавиши" Margin="0,0,0,10" ToolTip="Назначить или убрать сочетания"/>
      <Button x:Name="LaunchButton" Content="Открыть OBS"/>
     </StackPanel>
@@ -143,6 +143,12 @@
     <CheckBox x:Name="LaunchObsBox" Content="Запускать OBS вместе с меню (свёрнутым в трей)" ToolTip="Если OBS упадёт, меню запустит его снова"/>
     <CheckBox x:Name="KeepReplayBox" Content="Держать мгновенный повтор включённым" ToolTip="После перезапуска OBS буфер включится сам. Если выключить его вручную — меню не трогает"/>
     <CheckBox x:Name="DiagnosticsBox" Content="Предупреждать о пропуске кадров и нехватке места"/>
+    <TextBlock Text="Индикатор в углу экрана" Style="{StaticResource Label}" Margin="0,4,0,0"/>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="128"/></Grid.ColumnDefinitions>
+     <ComboBox x:Name="IndicatorBox"><ComboBoxItem Content="Не показывать" Tag="off"/><ComboBoxItem Content="Только во время записи" Tag="record"/><ComboBoxItem Content="Запись и повтор" Tag="all"/></ComboBox>
+     <ComboBox x:Name="IndicatorCornerBox" Grid.Column="2"><ComboBoxItem Content="Справа сверху" Tag="tr"/><ComboBoxItem Content="Слева сверху" Tag="tl"/><ComboBoxItem Content="Справа снизу" Tag="br"/><ComboBoxItem Content="Слева снизу" Tag="bl"/></ComboBox>
+    </Grid>
+    <TextBlock Text="Индикатор не попадает в запись и не мешает мыши. Над игрой в эксклюзивном полноэкранном режиме его не видно — только в оконном и безрамочном." TextWrapping="Wrap" FontSize="11" Foreground="#7F8A96" Margin="0,8,0,12"/>
     <Button x:Name="LogButton" Content="Открыть журнал" HorizontalAlignment="Left" Padding="13,8" FontSize="12" Margin="0,2,0,0"/>
    </StackPanel>
    <StackPanel x:Name="HotkeySection" Margin="0,12,0,12">
@@ -153,6 +159,54 @@
    </StackPanel>
 
 </StackPanel>
+    <StackPanel x:Name="ClipsPage" Visibility="Collapsed">
+     <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <Button x:Name="ClipsBackButton" Content="← Назад" Padding="12,8"/>
+      <Button x:Name="ClipsFolderButton" Grid.Column="2" Content="Открыть папку" Padding="12,8" FontSize="12"/>
+     </Grid>
+     <TextBlock Text="Клипы и записи" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0"/>
+     <TextBlock x:Name="ClipsInfo" Text="" Style="{StaticResource Label}" Margin="0,4,0,12" TextWrapping="Wrap"/>
+     <StackPanel x:Name="ClipDetail" Visibility="Collapsed" Margin="0,0,0,18">
+      <TextBlock x:Name="ClipTitle" Text="" FontSize="13" Foreground="#E6EBDD" TextTrimming="CharacterEllipsis" Margin="0,0,0,6"/>
+      <Border Background="#000000" Height="191" ClipToBounds="True">
+       <Grid><MediaElement x:Name="Player" LoadedBehavior="Manual" UnloadedBehavior="Close" ScrubbingEnabled="True" Stretch="Uniform"/>
+        <TextBlock x:Name="PlayerMessage" Text="" Foreground="#C4CCD4" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16"/></Grid>
+      </Border>
+      <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <Button x:Name="PlayButton" Content="▶" Width="44" Padding="0,7" FontSize="13" ToolTip="Воспроизвести / пауза"/>
+       <TextBlock x:Name="PlayTime" Grid.Column="1" Text="" FontSize="12" Foreground="#C4CCD4" VerticalAlignment="Center" Margin="10,0"/>
+       <Button x:Name="SoundButton" Grid.Column="2" Content="Звук выкл" Padding="10,7" FontSize="11"/>
+      </Grid>
+      <Slider x:Name="PlaySlider" Minimum="0" Maximum="1" Margin="0,8,0,0" IsMoveToPointEnabled="True"/>
+      <Canvas x:Name="TrimBar" Height="6" Margin="5,2,5,0" Background="#262A2F" ToolTip="Сохраняемый отрезок"><Rectangle x:Name="TrimRange" Height="6" Fill="#76B900"/></Canvas>
+      <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <Button x:Name="TrimStartButton" Content="Начало здесь" Padding="8,7" FontSize="12" ToolTip="Отрезок начнётся с текущего места"/>
+       <Button x:Name="TrimEndButton" Grid.Column="2" Content="Конец здесь" Padding="8,7" FontSize="12" ToolTip="Отрезок закончится на текущем месте"/>
+       <Button x:Name="TrimResetButton" Grid.Column="4" Content="Весь" Padding="10,7" FontSize="12" ToolTip="Сбросить отрезок"/>
+      </Grid>
+      <TextBlock x:Name="TrimInfo" Text="" TextWrapping="Wrap" FontSize="11" Foreground="#A5ADB7" Margin="0,8,0,8"/>
+      <CheckBox x:Name="PreciseBox" Content="Точно по кадру (перекодирование — дольше)" ToolTip="Без галочки файл копируется без потери качества, а начало сдвигается к ключевому кадру"/>
+      <CheckBox x:Name="Mp4Box" Content="Сохранить в MP4 — для Discord и телефона"/>
+      <Button x:Name="TrimButton" Content="Сохранить отрезок" Padding="14,9" Background="#343C28" Foreground="#C6E8A3" ToolTip="Сохраняется новым файлом рядом, исходный остаётся"/>
+      <TextBlock x:Name="TrimProgress" Text="" FontSize="12" Foreground="#9ADB45" Margin="0,6,0,0"/>
+      <StackPanel x:Name="FfmpegPanel" Visibility="Collapsed" Margin="0,6,0,0">
+       <TextBlock Text="Для обрезки нужен ffmpeg. Установите его командой «winget install Gyan.FFmpeg» и откройте клип снова — или укажите ffmpeg.exe вручную." TextWrapping="Wrap" FontSize="11" Foreground="#F2C46D"/>
+       <Button x:Name="FfmpegPickButton" Content="Указать ffmpeg.exe" HorizontalAlignment="Left" Padding="12,7" FontSize="12" Margin="0,6,0,0"/>
+      </StackPanel>
+      <TextBlock Text="Имя файла" Style="{StaticResource Label}" Margin="0,14,0,0"/>
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <TextBox x:Name="RenameBox"/>
+       <Button x:Name="RenameButton" Grid.Column="2" Content="Сохранить" Padding="12,7" FontSize="12" Margin="0,7,0,0"/>
+      </Grid>
+      <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/></Grid.ColumnDefinitions>
+       <Button x:Name="OpenClipButton" Content="В плеере" Padding="8,7" FontSize="12" ToolTip="Открыть в плеере по умолчанию"/>
+       <Button x:Name="RevealClipButton" Grid.Column="2" Content="В папке" Padding="8,7" FontSize="12" ToolTip="Показать файл в Проводнике"/>
+       <Button x:Name="DeleteClipButton" Grid.Column="4" Content="В Корзину" Padding="8,7" FontSize="12" Foreground="#F59B92" ToolTip="Удалить в Корзину — можно восстановить"/>
+      </Grid>
+     </StackPanel>
+     <StackPanel x:Name="ClipList"/>
+     <Button x:Name="MoreClipsButton" Content="Показать ещё" Visibility="Collapsed" Margin="0,6,0,0"/>
+    </StackPanel>
     </Grid>
    </ScrollViewer>
   </DockPanel>
