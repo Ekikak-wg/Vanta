@@ -46,7 +46,7 @@ namespace ReplayOverlay {
    if(page==before&&before!=null)return;
    C<ScrollViewer>("PageScroll").ScrollToTop();
    if(page=="record")Run(RenderMixer);
-   if(page=="settings"){RenderExcluded();FillApps();RenderHotkeys();RenderGames();RenderAudioApps();FillAudioApps();Run(FillDevices);}
+   if(page=="settings"){UpdateStorageUi();RenderExcluded();FillApps();RenderHotkeys();RenderGames();RenderAudioApps();FillAudioApps();Run(FillDevices);}
    if(page=="clips")Run(LoadClips);
    UpdateDisk();}
   void ScrollToSection(string name){window.Dispatcher.BeginInvoke(new Action(()=>{var el=C<FrameworkElement>(name);var sv=C<ScrollViewer>("PageScroll");var p=el.TranslatePoint(new Point(0,0),(UIElement)sv.Content);sv.ScrollToVerticalOffset(p.Y);}),DispatcherPriority.Loaded);}
@@ -71,7 +71,7 @@ namespace ReplayOverlay {
    C<TextBlock>("DiskFree").Text=DiskInfo.Gb(d.Free)+" свободно";bar.Background=Brush(d.BarColor);
    bar.Width=Math.Max(0,(track.ActualWidth>0?track.ActualWidth:200)*d.UsedFraction);
    C<Grid>("DiskRow").ToolTip="Занято: "+DiskInfo.Gb(d.Total-d.Free)+" / "+DiskInfo.Gb(d.Total)+" · "+folder;
-   if(d.Free<5L*1024*1024*1024)Warn("disk-"+d.Name,"Недостаточно места на диске: "+d.Name+" — "+DiskInfo.Gb(d.Free)+" свободно");}
+   if(d.Free<(long)lowDiskGb*1073741824L)Warn("disk-"+d.Name,"Недостаточно места на диске: "+d.Name+" — "+DiskInfo.Gb(d.Free)+" свободно");}
 
   // Меню по сочетанию открывается, только когда клавиши отпущены. Иначе отпускание Alt получает уже меню,
   // а игра (например, Warframe) так и считает Alt зажатым — и держит курсор поверх игры даже после закрытия меню.
@@ -132,6 +132,6 @@ namespace ReplayOverlay {
    await obs.Call("SaveSourceScreenshot",req);
    if(!File.Exists(file))throw new IOException("OBS не сохранил снимок");
    Log.Write("Скриншот: "+Path.GetFileName(file)+" ("+source+")");Message("Скриншот: "+Path.GetFileName(file));
-   Notify("Скриншот сохранён",Path.GetFileName(file),ToastKind.Shot);ClipsChanged();}
+   Track(file);Notify("Скриншот сохранён",Path.GetFileName(file),ToastKind.Shot);ClipsChanged();}
  }
 }

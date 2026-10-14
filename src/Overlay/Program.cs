@@ -86,7 +86,7 @@ namespace ReplayOverlay {
    C<Button>("LaunchButton").Click+=(s,e)=>Run(LaunchObs);
    C<Button>("ApplyButton").Click+=(s,e)=>Run(Apply);
    C<ComboBox>("SceneBox").SelectionChanged+=(s,e)=>{if(!loading&&C<ComboBox>("SceneBox").SelectedItem!=null)Run(async()=>{EnsureReady();await obs.Call("SetCurrentProgramScene",Json.D("sceneName",Convert.ToString(C<ComboBox>("SceneBox").SelectedItem)));});};
-   statsTimer.Tick+=(s,e)=>PollStats();BindBackgroundOptions();BindGames();BindAudio();BindPrivacy();BindClips();BindIndicator();BindShell();clock.Interval=TimeSpan.FromSeconds(1);clock.Tick+=(s,e)=>{if(record)C<TextBlock>("RecordState").Text=(DateTime.Now-recordStart).ToString(@"hh\:mm\:ss");};
+   statsTimer.Tick+=(s,e)=>PollStats();BindBackgroundOptions();BindGames();BindAudio();BindPrivacy();BindClips();BindIndicator();BindShell();BindVideo();clock.Interval=TimeSpan.FromSeconds(1);clock.Tick+=(s,e)=>{if(record)C<TextBlock>("RecordState").Text=(DateTime.Now-recordStart).ToString(@"hh\:mm\:ss");};
    tray=new WF.NotifyIcon{Icon=AppIcon(),Visible=true,Text="Replay Overlay — OBS"};
    var menu=new WF.ContextMenuStrip();menu.Items.Add("Открыть меню",null,(s,e)=>Show());menu.Items.Add("Сохранить повтор",null,(s,e)=>Run(SaveReplay));menu.Items.Add("Сделать скриншот",null,(s,e)=>Run(TakeScreenshot));menu.Items.Add("Галерея",null,(s,e)=>{Show();Ui(OpenClips);});menu.Items.Add("Открыть OBS",null,(s,e)=>Run(LaunchObs));menu.Items.Add("Открыть журнал",null,(s,e)=>OpenLog());menu.Items.Add(new WF.ToolStripSeparator());menu.Items.Add("Выйти из оверлея",null,(s,e)=>Exit());tray.ContextMenuStrip=menu;tray.DoubleClick+=(s,e)=>Show();
    obs.ConnectionChanged+=connected=>Ui(()=>{C<TextBlock>("ConnectionLabel").Text=connected?"OBS подключён":"Нет связи с OBS";C<Ellipse>("ConnectionDot").Fill=Brush(connected?"#8DCC38":"#D6A45B");UpdateControls();privacy.Enabled=connected&&(excluded.Count>0||hideNotifications);OnConnection(connected);if(connected){sceneItems.Clear();Run(RefreshWhenReady);}});
@@ -177,10 +177,8 @@ namespace ReplayOverlay {
     var video=videoTask.Result;string size=Json.Int(video,"outputWidth")+","+Json.Int(video,"outputHeight");SelectTag(C<ComboBox>("ResolutionBox"),size);SelectContent(C<ComboBox>("FpsBox"),(Json.Int(video,"fpsNumerator")/Math.Max(1,Json.Int(video,"fpsDenominator"))).ToString());
     {var param=await obs.Call("GetProfileParameter",Json.D("parameterCategory",OutputSection,"parameterName","RecRBTime"));int value;if(int.TryParse(Json.Str(param,"parameterValue"),out value))duration=value;C<Slider>("DurationSlider").Value=Math.Max(10,Math.Min(1800,duration));MarkDurationChip(duration);
      if(micName.Length>0){try{micMuted=Json.Bool(await obs.Call("GetInputMute",Json.D("inputName",micName)),"inputMuted");}catch(InvalidOperationException){micName="";}}
-     // Битрейт и качество меняем только у NVENC в расширенном режиме вывода: там OBS читает recordEncoder.json при каждом запуске записи и буфера.
-     encoderPath=Path.Combine(ObsConfig.ProfileDirectory(profileName),"recordEncoder.json");string recEncoder=outputMode=="Advanced"?Json.Str(await obs.Call("GetProfileParameter",Json.D("parameterCategory","AdvOut","parameterName","RecEncoder")),"parameterValue"):"";
-     encoderEditable=recEncoder.Contains("nvenc")&&File.Exists(encoderPath);C<TextBlock>("EncoderHint").Visibility=encoderEditable?Visibility.Collapsed:Visibility.Visible;
-     if(encoderEditable){var enc=Json.Decode(File.ReadAllText(encoderPath));C<TextBox>("BitrateBox").Text=(Json.Int(enc,"bitrate",20000)/1000).ToString();C<ComboBox>("QualityBox").SelectedIndex=Json.Str(enc,"preset")=="p4"?0:Json.Str(enc,"multipass")=="qres"?2:1;}}
+     await RefreshVideo();
+     }
    }finally{loading=false;}
    C<TextBlock>("ConnectionLabel").Text="OBS подключён · профиль «"+profileName+"»";C<TextBlock>("FormatLabel").Text=outputMode=="Simple"?"Режим вывода OBS: простой":"Режим вывода OBS: расширенный";UpdateControls();
    {var names=new List<string>();foreach(var item in C<ComboBox>("SceneBox").Items)names.Add(Convert.ToString(item));await DetectModeScenes(names);}
@@ -195,8 +193,8 @@ namespace ReplayOverlay {
     if(st=="OBS_WEBSOCKET_OUTPUT_STARTED"){Log.Write("Буфер повтора включён");if(!replayWanted){replayWanted=true;SavePrefs();}}
     else if(st=="OBS_WEBSOCKET_OUTPUT_STOPPED"){Log.Write("Буфер повтора выключен"+(busy?" (применение настроек)":exitStarted?" (OBS закрывается)":""));if(!busy&&!exitStarted&&replayWanted){replayWanted=false;SavePrefs();}}UpdateIndicator();}
    else if(type=="ExitStarted"){exitStarted=true;Log.Write("OBS закрывается");}
-   else if(type=="RecordStateChanged"){bool active=Json.Bool(d,"outputActive");string rs=Json.Str(d,"outputState");if(rs=="OBS_WEBSOCKET_OUTPUT_STARTED"||rs=="OBS_WEBSOCKET_OUTPUT_STOPPED")Log.Write(active?"Запись начата":"Запись остановлена");if(active&&!record)recordStart=DateTime.Now;record=active;UpdateControls();UpdateIndicator();if(rs=="OBS_WEBSOCKET_OUTPUT_STARTED"){var g=gamesWatch.Current;Notify("Запись начата",g!=null?g.FileName:currentScene,ToastKind.Record);}if(!active&&Json.Str(d,"outputPath").Length>0){Notify("Запись сохранена",Path.GetFileName(Json.Str(d,"outputPath")),ToastKind.Ok);ClipsChanged();}}
-   else if(type=="ReplayBufferSaved"){lastSaved=Json.Str(d,"savedReplayPath");Log.Write("Повтор сохранён: "+Path.GetFileName(lastSaved));Message("Сохранено: "+Path.GetFileName(lastSaved));Notify("Сохранён момент из повтора",Path.GetFileName(lastSaved),ToastKind.Ok);ClipsChanged();}
+   else if(type=="RecordStateChanged"){bool active=Json.Bool(d,"outputActive");string rs=Json.Str(d,"outputState");if(rs=="OBS_WEBSOCKET_OUTPUT_STARTED"||rs=="OBS_WEBSOCKET_OUTPUT_STOPPED")Log.Write(active?"Запись начата":"Запись остановлена");if(active&&!record)recordStart=DateTime.Now;record=active;UpdateControls();UpdateIndicator();if(rs=="OBS_WEBSOCKET_OUTPUT_STARTED"){var g=gamesWatch.Current;Notify("Запись начата",g!=null?g.FileName:currentScene,ToastKind.Record);}if(!active&&Json.Str(d,"outputPath").Length>0){Track(Json.Str(d,"outputPath"));Notify("Запись сохранена",Path.GetFileName(Json.Str(d,"outputPath")),ToastKind.Ok);ClipsChanged();}}
+   else if(type=="ReplayBufferSaved"){lastSaved=AfterReplaySaved(Json.Str(d,"savedReplayPath"));Log.Write("Повтор сохранён: "+Path.GetFileName(lastSaved));Message("Сохранено: "+Path.GetFileName(lastSaved));Notify("Сохранён момент из повтора",Path.GetFileName(lastSaved),ToastKind.Ok);ClipsChanged();}
    else if(type=="InputMuteStateChanged"&&micName.Length>0&&Json.Str(d,"inputName")==micName){micMuted=Json.Bool(d,"inputMuted");UpdateControls();}
    else if(type=="CurrentProgramSceneChanged"){currentScene=Json.Str(d,"sceneName");loading=true;C<ComboBox>("SceneBox").SelectedItem=currentScene;loading=false;UpdateMode();ApplyPrivacy();privacy.Kick();}
    else if(type=="SceneItemEnableStateChanged"){if(Json.Bool(d,"sceneItemEnabled")&&hidden.Remove(Json.Str(d,"sceneName")+"\n"+Json.Int(d,"sceneItemId"))){SavePrefs();ApplyPrivacy();}}
@@ -219,12 +217,13 @@ namespace ReplayOverlay {
    hideNotifications=Opt(p,"hideNotifications",false);if(p.TryGetValue("strict",out raw))strictLoaded=Json.Obj(raw);
    if(p.TryGetValue("gamePrivacy",out raw))foreach(var kv in Json.Obj(raw))gamePrivacy[kv.Key]=Convert.ToString(kv.Value);
    if(p.ContainsKey("indicator"))indicatorMode=Json.Str(p,"indicator");if(p.ContainsKey("indicatorCorner"))indicatorCorner=Json.Str(p,"indicatorCorner");ffmpegPath=Json.Str(p,"ffmpeg");lastDirectory=Json.Str(p,"lastDirectory");previewSound=Opt(p,"previewSound",false);precise=Opt(p,"precise",false);toMp4=Opt(p,"toMp4",true);
-   shotDir=Json.Str(p,"shotDir");if(p.ContainsKey("shotFormat"))shotFormat=Json.Str(p,"shotFormat");shotQuality=Math.Max(1,Math.Min(100,Json.Int(p,"shotQuality",90)));if(p.ContainsKey("shotSource"))shotSource=Json.Str(p,"shotSource");keysPanelOn=Opt(p,"keysPanel",true);}catch{}}
+   shotDir=Json.Str(p,"shotDir");if(p.ContainsKey("shotFormat"))shotFormat=Json.Str(p,"shotFormat");shotQuality=Math.Max(1,Math.Min(100,Json.Int(p,"shotQuality",90)));if(p.ContainsKey("shotSource"))shotSource=Json.Str(p,"shotSource");keysPanelOn=Opt(p,"keysPanel",true);
+   replayDir=Json.Str(p,"replayDir");if(p.TryGetValue("managed",out raw))managed.Load(raw);cleanupOn=Opt(p,"cleanup",false);cleanupDays=Json.Int(p,"cleanupDays",30);cleanupGb=Json.Int(p,"cleanupGb",0);lowDiskGb=Math.Max(1,Json.Int(p,"lowDiskGb",5));}catch{}}
   readonly Dictionary<string,Dictionary<string,object>> gameBackupLoaded=new Dictionary<string,Dictionary<string,object>>();string sceneBeforeLoaded,sceneByLoaded;
   static bool Opt(Dictionary<string,object> p,string key,bool fallback){return p.ContainsKey(key)?Json.Bool(p,key):fallback;}
   void SavePrefs(){try{var hk=new Dictionary<string,string>();foreach(var a in Actions){Hotkey k=HotkeyFor(a[0]);hk[a[0]]=k==null?"":k.Serialize();}
    AtomicWrite(prefsPath,Json.Encode(Json.D("hotkeys",hk,"excluded",excluded.OrderBy(x=>x,StringComparer.OrdinalIgnoreCase).ToArray(),"hiddenItems",hidden.ToArray(),"launchObs",launchObs,"keepReplay",keepReplay,"diagnostics",diagnostics,"replayWanted",replayWanted,"autoGames",autoGames,"gameRestore",gameRestore,"gameAction",gameAction,"myGames",myGames.OrderBy(x=>x).ToArray(),"notGames",notGames.OrderBy(x=>x).ToArray(),"noCursor",noCursor.OrderBy(x=>x).ToArray(),"gameModes",gameModes,
-    "gameBackup",gameSession==null?null:Json.D("inputs",gameSession.Backup,"before",gameSession.SceneBefore,"by",gameSession.SceneByGame),"audioMode",audioMode,"audioOnly",audioOnly.ToArray(),"audioExcept",audioExcept.ToArray(),"audio",audioState.ToJson(),"hideNotifications",hideNotifications,"strict",strict==null?null:strict.ToJson(),"gamePrivacy",gamePrivacy,"indicator",indicatorMode,"indicatorCorner",indicatorCorner,"ffmpeg",ffmpegPath,"lastDirectory",lastDirectory,"previewSound",previewSound,"precise",precise,"toMp4",toMp4,"shotDir",shotDir,"shotFormat",shotFormat,"shotQuality",shotQuality,"shotSource",shotSource,"keysPanel",keysPanelOn)));}catch(Exception ex){Message("Настройки меню не сохранены: "+ex.Message);}}
+    "gameBackup",gameSession==null?null:Json.D("inputs",gameSession.Backup,"before",gameSession.SceneBefore,"by",gameSession.SceneByGame),"audioMode",audioMode,"audioOnly",audioOnly.ToArray(),"audioExcept",audioExcept.ToArray(),"audio",audioState.ToJson(),"hideNotifications",hideNotifications,"strict",strict==null?null:strict.ToJson(),"gamePrivacy",gamePrivacy,"indicator",indicatorMode,"indicatorCorner",indicatorCorner,"ffmpeg",ffmpegPath,"lastDirectory",lastDirectory,"previewSound",previewSound,"precise",precise,"toMp4",toMp4,"shotDir",shotDir,"shotFormat",shotFormat,"shotQuality",shotQuality,"shotSource",shotSource,"keysPanel",keysPanelOn,"replayDir",replayDir,"managed",managed.ToJson(),"cleanup",cleanupOn,"cleanupDays",cleanupDays,"cleanupGb",cleanupGb,"lowDiskGb",lowDiskGb)));}catch(Exception ex){Message("Настройки меню не сохранены: "+ex.Message);}}
   async Task<object[]> Items(string scene){object[] items;if(sceneItems.TryGetValue(scene,out items))return items;object raw;var r=await obs.Call("GetSceneItemList",Json.D("sceneName",scene));r.TryGetValue("sceneItems",out raw);items=(raw as object[])??new object[0];sceneItems[scene]=items;return items;}
   static bool Has(object[] items,string kind){return items.Any(i=>Json.Str(Json.Obj(i),"inputKind")==kind);}
   // «Только игра» — сцена с захватом игры без захвата монитора; «Игра и экран» — сцена с захватом монитора.
@@ -537,41 +536,11 @@ namespace ReplayOverlay {
   async Task WaitBuffer(bool active){for(int i=0;i<100;i++){var s=await obs.Call("GetReplayBufferStatus");if(Json.Bool(s,"outputActive")==active)return;await Task.Delay(100);}throw new TimeoutException("Буфер не перешёл в ожидаемое состояние");}
   static void AtomicWrite(string path,string contents){string temp=path+".overlay.tmp";File.WriteAllText(temp,contents,new System.Text.UTF8Encoding(false));if(File.Exists(path))File.Replace(temp,path,path+".overlay.bak");else File.Move(temp,path);}
   string OutputSection{get{return outputMode=="Simple"?"SimpleOutput":"AdvOut";}}
-  async Task Apply(){EnsureReady();int bitrate=0;bool editEncoder=encoderEditable;string section=OutputSection,startProfile=profileName;if(editEncoder&&(!int.TryParse(C<TextBox>("BitrateBox").Text,out bitrate)||bitrate<5||bitrate>100))throw new InvalidOperationException("Укажите целый битрейт от 5 до 100 Мбит/с");
-   int seconds=duration;string[] size=Convert.ToString(((ComboBoxItem)C<ComboBox>("ResolutionBox").SelectedItem).Tag).Split(',');int fps=int.Parse(Convert.ToString(((ComboBoxItem)C<ComboBox>("FpsBox").SelectedItem).Content));int quality=C<ComboBox>("QualityBox").SelectedIndex;
-   var rec=await obs.Call("GetRecordStatus");var stream=await obs.Call("GetStreamStatus");var camera=await obs.Call("GetVirtualCamStatus");if(Json.Bool(rec,"outputActive")||Json.Bool(stream,"outputActive")||Json.Bool(camera,"outputActive"))throw new InvalidOperationException("Сначала остановите запись, трансляцию и виртуальную камеру в OBS");
-   string oldEncoder=editEncoder?File.ReadAllText(encoderPath):null;var oldVideo=await obs.Call("GetVideoSettings");var oldDuration=await obs.Call("GetProfileParameter",Json.D("parameterCategory",section,"parameterName","RecRBTime"));bool resumeKnown=replayAvailable;bool resume=resumeKnown&&Json.Bool(await obs.Call("GetReplayBufferStatus"),"outputActive");bool changed=false;busy=true;UpdateControls();
-   Exception failure=null;
-   try{if(resume){await obs.Call("StopReplayBuffer");await WaitBuffer(false);}var check=await obs.Call("GetProfileList");if(Json.Str(check,"currentProfileName")!=startProfile)throw new InvalidOperationException("Профиль изменился; применение отменено");
-    changed=true;if(editEncoder){var enc=Json.Decode(oldEncoder);enc["rate_control"]="VBR";enc["bitrate"]=bitrate*1000;enc["max_bitrate"]=bitrate*1500;enc["preset"]=quality==0?"p4":"p5";enc["multipass"]=quality==2?"qres":"disabled";enc["adaptive_quantization"]=quality!=0;enc["lookahead"]=false;AtomicWrite(encoderPath,Json.Encode(enc));}
-    await obs.Call("SetProfileParameter",Json.D("parameterCategory",section,"parameterName","RecRBTime","parameterValue",seconds.ToString()));
-    await obs.Call("SetVideoSettings",Json.D("outputWidth",int.Parse(size[0]),"outputHeight",int.Parse(size[1]),"fpsNumerator",fps,"fpsDenominator",1));
-    if(resume){await obs.Call("StartReplayBuffer");await WaitBuffer(true);}Message("Настройки применены"+(resume?" · буфер запущен заново":""));
-   }catch(Exception ex){failure=ex;}
-   try{
-    if(failure!=null){
-     try{
-      if(!obs.Connected)throw new IOException("OBS отключился");
-      var now=await obs.Call("GetProfileList");
-      if(Json.Str(now,"currentProfileName")!=startProfile)throw new InvalidOperationException("Выбран другой профиль");
-      if(changed){
-       if(Json.Bool(await obs.Call("GetReplayBufferStatus"),"outputActive")){await obs.Call("StopReplayBuffer");await WaitBuffer(false);}
-       if(oldEncoder!=null)AtomicWrite(encoderPath,oldEncoder);
-       await obs.Call("SetProfileParameter",Json.D("parameterCategory",section,"parameterName","RecRBTime","parameterValue",Json.Str(oldDuration,"parameterValue","300")));
-       await obs.Call("SetVideoSettings",Json.D("outputWidth",Json.Int(oldVideo,"outputWidth"),"outputHeight",Json.Int(oldVideo,"outputHeight"),"fpsNumerator",Json.Int(oldVideo,"fpsNumerator"),"fpsDenominator",Json.Int(oldVideo,"fpsDenominator")));
-      }
-      if(resume&&!Json.Bool(await obs.Call("GetReplayBufferStatus"),"outputActive"))await obs.Call("StartReplayBuffer");
-     }catch(Exception rollbackError){failure=new InvalidOperationException("Проверьте настройки OBS: откат не завершён. "+failure.Message+" / "+rollbackError.Message);}
-     throw failure;
-    }
-   }finally{busy=false;UpdateControls();}
-   await Refresh();
-  }
   // Выход по любому пути (меню трея, событие выхода, завершение сеанса Windows): каждый шаг отдельно — сбой одного не мешает остальным.
   bool exitStarting;
   public void Exit(){if(exiting||exitStarting)return;exitStarting=true;Log.Write("Меню закрыто");
    foreach(var step in new KeyValuePair<string,Action>[]{
-    new KeyValuePair<string,Action>("таймеры",()=>{statsTimer.Stop();sessionTimer.Stop();indicatorTimer.Stop();clock.Stop();}),
+    new KeyValuePair<string,Action>("таймеры",()=>{cleanupTimer.Stop();statsTimer.Stop();sessionTimer.Stop();indicatorTimer.Stop();clock.Stop();}),
     new KeyValuePair<string,Action>("индикатор",()=>{if(indicator!=null)indicator.Dispose();}),
     new KeyValuePair<string,Action>("клипы",()=>{if(clipLoader!=null)clipLoader.Dispose();if(trimCancel!=null)trimCancel.Cancel();ClosePlayer();}),
     new KeyValuePair<string,Action>("игры",()=>gamesWatch.Dispose()),

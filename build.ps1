@@ -29,7 +29,7 @@ try {
  $common = "$ov\ObsConfig.cs", "$ov\ObsClient.cs"
  $vb = "/reference:$fw\Microsoft.VisualBasic.dll"
  Compile "$bin\ReplayOverlay.exe" winexe (@("/win32manifest:$ov\app.manifest", '/win32icon:assets\icon.ico', "/resource:$ov\Overlay.xaml,Overlay.xaml", $vb) + $sys + $wpf) `
-  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Diagnostics.cs", "$ov\Games.cs", "$ov\Audio.cs", "$ov\Clips.cs", "$ov\Indicator.cs", "$ov\Chrome.cs", "$ov\Gallery.cs", "$ov\Shell.cs", "$ov\Program.cs"))
+  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Diagnostics.cs", "$ov\Games.cs", "$ov\Audio.cs", "$ov\Clips.cs", "$ov\Indicator.cs", "$ov\Chrome.cs", "$ov\Encoders.cs", "$ov\Storage.cs", "$ov\Gallery.cs", "$ov\Shell.cs", "$ov\VideoSettings.cs", "$ov\Program.cs"))
  Compile "$bin\ReplayOBS-Setup.exe" winexe (@('/win32manifest:src\Setup\setup.manifest', '/win32icon:assets\icon.ico', '/resource:src\Setup\Setup.xaml,Setup.xaml', '/resource:assets\icon.png,icon.png', "/resource:$bin\ReplayOverlay.exe,payload.ReplayOverlay.exe") + $sys + $wpf) `
   (@('src\Setup\AssemblyInfo.cs', 'src\Setup\Setup.cs') + $common)
 
@@ -50,6 +50,8 @@ try {
   & "$bin\tests\PrivacyRulesTest.exe"; if ($LASTEXITCODE) { throw 'PrivacyRulesTest failed' }
   Compile "$bin\tests\ClipsTest.exe" exe (@($vb) + $sys + $wpf) @('tests\ClipsTest.cs', "$ov\Clips.cs", "$ov\Indicator.cs")
   & "$bin\tests\ClipsTest.exe"; if ($LASTEXITCODE) { throw 'ClipsTest failed' }
+  Compile "$bin\tests\EncodersTest.exe" exe @("/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll") (@('tests\EncodersTest.cs', "$ov\Encoders.cs", "$ov\Storage.cs") + $common)
+  & "$bin\tests\EncodersTest.exe"; if ($LASTEXITCODE) { throw 'EncodersTest failed' }
   & powershell -NoProfile -ExecutionPolicy Bypass -File 'tests\SetupTest.ps1' -Setup "$bin\ReplayOBS-Setup.exe"; if ($LASTEXITCODE) { throw 'SetupTest failed' }
   if ($Desktop) {
    Compile "$bin\tests\PrivacyTest.exe" exe @("/reference:$fw\System.Windows.Forms.dll", "/reference:$fw\System.Drawing.dll", "/reference:$fw\WPF\WindowsBase.dll", "/reference:$fw\System.Web.Extensions.dll", "/reference:$fw\System.Core.dll") @('tests\PrivacyTest.cs', "$ov\Privacy.cs", "$ov\ObsClient.cs", "$ov\ObsConfig.cs")

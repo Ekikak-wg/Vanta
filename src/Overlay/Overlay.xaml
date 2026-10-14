@@ -152,16 +152,29 @@
      <TextBlock Text="Качество записи" Style="{StaticResource Section}"/>
      <Border Style="{StaticResource Card}">
       <StackPanel>
-       <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
-        <StackPanel><TextBlock Text="Разрешение" Style="{StaticResource Label}"/><ComboBox x:Name="ResolutionBox"><ComboBoxItem Content="1280 × 720" Tag="1280,720"/><ComboBoxItem Content="1600 × 900" Tag="1600,900"/><ComboBoxItem Content="1920 × 1080" Tag="1920,1080" IsSelected="True"/></ComboBox></StackPanel>
-        <StackPanel Grid.Column="2"><TextBlock Text="Частота кадров" Style="{StaticResource Label}"/><ComboBox x:Name="FpsBox"><ComboBoxItem Content="30"/><ComboBoxItem Content="60" IsSelected="True"/><ComboBoxItem Content="120"/></ComboBox></StackPanel>
+       <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition Width="110"/></Grid.ColumnDefinitions>
+        <StackPanel><TextBlock Text="Разрешение" Style="{StaticResource Label}"/><ComboBox x:Name="ResolutionBox"/></StackPanel>
+        <StackPanel Grid.Column="2"><TextBlock Text="Кадров/с" Style="{StaticResource Label}"/><ComboBox x:Name="FpsBox"><ComboBoxItem Content="30"/><ComboBoxItem Content="60" IsSelected="True"/><ComboBoxItem Content="120"/></ComboBox></StackPanel>
        </Grid>
+       <StackPanel x:Name="CustomResPanel" Visibility="Collapsed"><TextBox x:Name="CustomResBox" ToolTip="Ширина × высота, например 2560x1440"/><TextBlock Text="Ширина x высота, чётные числа. Больше размера экрана записывать нет смысла: картинка будет растянута." Style="{StaticResource Hint}" Margin="0,4,0,0"/></StackPanel>
        <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
-        <StackPanel><TextBlock Text="Битрейт, Мбит/с" Style="{StaticResource Label}"/><TextBox x:Name="BitrateBox" Text="20" ToolTip="Средний битрейт 5–100 Мбит/с; максимум VBR в 1,5 раза выше"/></StackPanel>
-        <StackPanel Grid.Column="2"><TextBlock Text="Качество" Style="{StaticResource Label}"/><ComboBox x:Name="QualityBox"><ComboBoxItem Content="Рекомендуемое" IsSelected="True"/><ComboBoxItem Content="Высокое"/><ComboBoxItem Content="Максимальное"/></ComboBox></StackPanel>
+        <StackPanel><TextBlock Text="Кодировщик" Style="{StaticResource Label}"/><ComboBox x:Name="EncoderBox" ToolTip="Показаны только кодировщики, которые OBS нашёл на этом компьютере"/></StackPanel>
+        <StackPanel Grid.Column="2"><TextBlock Text="Кодек" Style="{StaticResource Label}"/><ComboBox x:Name="CodecBox" ToolTip="H.264 — открывается везде; HEVC и AV1 — меньше размер при том же качестве"/></StackPanel>
        </Grid>
-       <TextBlock x:Name="EncoderHint" Text="Битрейт и качество меняются здесь только для NVENC в расширенном режиме вывода OBS. Для других кодировщиков — Настройки OBS → Вывод." Style="{StaticResource Hint}" Foreground="#F2C46D" Margin="0,8,0,0" Visibility="Collapsed"/>
-       <TextBlock Text="Сейчас эти параметры общие для записи и мгновенного повтора — так устроен OBS. Отдельные параметры повтора появятся вместе с плагином Source Record. Применение перезапустит буфер повтора и сбросит накопленную историю." Style="{StaticResource Hint}" Margin="0,8,0,10"/>
+       <TextBlock Text="Качество" Style="{StaticResource Label}" Margin="0,10,0,0"/>
+       <ComboBox x:Name="QualityBox"><ComboBoxItem Content="Рекомендуемое" Tag="recommended"/><ComboBoxItem Content="Высокое" Tag="high"/><ComboBoxItem Content="Максимальное" Tag="max"/><ComboBoxItem Content="Пользовательское" Tag="custom"/></ComboBox>
+       <TextBlock x:Name="QualityHint" Text="" Style="{StaticResource Hint}" Margin="0,6,0,0"/>
+       <Grid x:Name="CustomQualityPanel" Margin="0,8,0,0" Visibility="Collapsed"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
+        <StackPanel><TextBlock Text="Управление битрейтом" Style="{StaticResource Label}"/><ComboBox x:Name="RateControlBox"><ComboBoxItem Content="VBR — переменный" Tag="VBR"/><ComboBoxItem Content="CBR — постоянный" Tag="CBR"/><ComboBoxItem Content="CQP — постоянное качество" Tag="CQP"/></ComboBox></StackPanel>
+        <StackPanel Grid.Column="2"><TextBlock x:Name="BitrateLabel" Text="Битрейт, Мбит/с" Style="{StaticResource Label}"/><TextBox x:Name="BitrateBox" Text="20"/></StackPanel>
+       </Grid>
+       <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
+        <StackPanel><TextBlock Text="Формат файла" Style="{StaticResource Label}"/><ComboBox x:Name="FormatBox"><ComboBoxItem Content="MKV" Tag="mkv" ToolTip="Надёжный: при сбое запись сохраняется"/><ComboBoxItem Content="MP4 (гибридный)" Tag="hybrid_mp4" ToolTip="Надёжный и сразу открывается в Discord и на телефоне"/><ComboBoxItem Content="MP4" Tag="mp4" ToolTip="При сбое OBS файл может не открыться"/><ComboBoxItem Content="MOV" Tag="mov"/></ComboBox></StackPanel>
+        <StackPanel Grid.Column="2"><TextBlock Text="Шаблон имени" Style="{StaticResource Label}"/><TextBox x:Name="FilenameBox" ToolTip="%CCYY год, %MM месяц, %DD день, %hh часы, %mm минуты, %ss секунды"/></StackPanel>
+       </Grid>
+       <TextBlock x:Name="FormatHint" Text="Шаблон: %CCYY-%MM-%DD_%hh-%mm-%ss → 2026-10-14_12-30-05. Повторы называются так же, но с приставкой из «Сохранения»." Style="{StaticResource Hint}" Margin="0,6,0,0"/>
+       <TextBlock x:Name="EncoderHint" Text="Кодировщик и качество меняются здесь только в расширенном режиме вывода OBS (Настройки OBS → Вывод → Режим вывода: Расширенный)." Style="{StaticResource Hint}" Foreground="#F2C46D" Margin="0,8,0,0" Visibility="Collapsed"/>
+       <TextBlock Text="Сейчас эти параметры общие для записи и мгновенного повтора — так устроен OBS. Применение остановит и снова запустит буфер повтора (накопленная история сбросится); смена кодировщика или кодека ещё и перезагрузит профиль OBS — это пара секунд." Style="{StaticResource Hint}" Margin="0,8,0,10"/>
        <Button x:Name="ApplyButton" Content="Применить" HorizontalAlignment="Left" Background="#1F00D46A" Foreground="#7DF0B0"/>
       </StackPanel>
      </Border>
@@ -318,12 +331,26 @@
     <StackPanel x:Name="SettingsPage" Visibility="Collapsed">
      <TextBlock Text="Настройки" Style="{StaticResource Title}"/>
      <WrapPanel Margin="0,0,0,6">
+      <Button x:Name="NavVideo" Content="Видео" Padding="10,6" FontSize="12" Margin="0,0,6,6"/>
       <Button x:Name="NavAudio" Content="Аудио" Padding="10,6" FontSize="12" Margin="0,0,6,6"/>
       <Button x:Name="NavCapture" Content="Захват и приложения" Padding="10,6" FontSize="12" Margin="0,0,6,6"/>
       <Button x:Name="NavPrivacy" Content="Приватность" Padding="10,6" FontSize="12" Margin="0,0,6,6"/>
       <Button x:Name="NavHotkeys" Content="Горячие клавиши" Padding="10,6" FontSize="12" Margin="0,0,6,6"/>
+      <Button x:Name="NavStorage" Content="Сохранение" Padding="10,6" FontSize="12" Margin="0,0,6,6"/>
       <Button x:Name="NavSystem" Content="Система" Padding="10,6" FontSize="12" Margin="0,0,6,6"/>
      </WrapPanel>
+
+     <StackPanel x:Name="VideoSection">
+      <TextBlock Text="Видео" Style="{StaticResource Section}"/>
+      <Border Style="{StaticResource Card}">
+       <StackPanel>
+        <TextBlock Text="Кодировщики на этом компьютере" Style="{StaticResource Label}"/>
+        <TextBlock x:Name="EncodersInfo" Text="—" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0"/>
+        <TextBlock Text="Список берётся из журнала OBS при его запуске. Разрешение, частота кадров, кодировщик, кодек и качество задаются во вкладке «Запись»." Style="{StaticResource Hint}" Margin="0,8,0,10"/>
+        <Button x:Name="VideoOpenRecord" Content="Открыть параметры записи" HorizontalAlignment="Left" Padding="12,7" FontSize="12"/>
+       </StackPanel>
+      </Border>
+     </StackPanel>
 
      <StackPanel x:Name="AudioSection">
       <TextBlock Text="Аудио" Style="{StaticResource Section}"/>
@@ -404,6 +431,47 @@
        <StackPanel>
         <TextBlock Text="Нажмите на сочетание и введите новое. Backspace или × — оставить пустым, Esc — отмена. Работают везде, в том числе в игре." Style="{StaticResource Hint}" Margin="0,0,0,10"/>
         <StackPanel x:Name="HotkeyList"/>
+       </StackPanel>
+      </Border>
+     </StackPanel>
+
+     <StackPanel x:Name="StorageSection">
+      <TextBlock Text="Сохранение" Style="{StaticResource Section}"/>
+      <Border Style="{StaticResource Card}">
+       <StackPanel>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+         <StackPanel><TextBlock Text="Записи" Style="{StaticResource Label}"/><TextBlock x:Name="StoreRecLabel" Text="—" FontSize="13" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
+         <Button x:Name="StoreRecPick" Grid.Column="1" Content="Изменить" Padding="12,7" FontSize="12" VerticalAlignment="Center"/>
+        </Grid>
+        <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+         <StackPanel><TextBlock Text="Мгновенные повторы" Style="{StaticResource Label}"/><TextBlock x:Name="StoreReplayLabel" Text="—" FontSize="13" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
+         <Button x:Name="StoreReplayReset" Grid.Column="1" Content="Как у записей" Padding="10,7" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+         <Button x:Name="StoreReplayPick" Grid.Column="2" Content="Изменить" Padding="12,7" FontSize="12" VerticalAlignment="Center"/>
+        </Grid>
+        <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+         <StackPanel><TextBlock Text="Скриншоты" Style="{StaticResource Label}"/><TextBlock x:Name="StoreShotLabel" Text="—" FontSize="13" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
+         <Button x:Name="StoreShotPick" Grid.Column="1" Content="Изменить" Padding="12,7" FontSize="12" VerticalAlignment="Center"/>
+        </Grid>
+        <TextBlock Text="OBS сохраняет повтор в папку записей; если для повторов выбрана своя папка, меню сразу переносит туда сохранённый файл." Style="{StaticResource Hint}" Margin="0,6,0,0"/>
+        <TextBlock Text="Приставка в имени повторов" Style="{StaticResource Label}" Margin="0,14,0,0"/>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+         <TextBox x:Name="ReplayPrefixBox" ToolTip="Например Replay → «Replay 2026-10-14_12-30-05.mkv»"/>
+         <Button x:Name="ReplayPrefixApply" Grid.Column="2" Content="Сохранить" Padding="12,7" FontSize="12" Margin="0,6,0,0"/>
+        </Grid>
+        <Grid Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="80"/></Grid.ColumnDefinitions>
+         <TextBlock Text="Предупреждать, когда свободно меньше, ГБ" Style="{StaticResource Label}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+         <TextBox x:Name="LowDiskBox" Grid.Column="1" Margin="0"/>
+        </Grid>
+        <CheckBox x:Name="CleanupBox" Content="Автоматически удалять старые файлы Replay в Корзину" Margin="0,14,0,8" ToolTip="Только повторы, записи, скриншоты и отрезки, созданные Replay. Ваши другие файлы не трогаются"/>
+        <Grid x:Name="CleanupPanel"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
+         <StackPanel><TextBlock Text="Хранить не дольше, дней (0 — без срока)" Style="{StaticResource Label}" TextWrapping="Wrap"/><TextBox x:Name="CleanupDaysBox"/></StackPanel>
+         <StackPanel Grid.Column="2"><TextBlock Text="Занимать не больше, ГБ (0 — без предела)" Style="{StaticResource Label}" TextWrapping="Wrap"/><TextBox x:Name="CleanupGbBox"/></StackPanel>
+        </Grid>
+        <TextBlock x:Name="CleanupInfo" Text="" Style="{StaticResource Hint}" Margin="0,8,0,8"/>
+        <WrapPanel>
+         <Button x:Name="CleanupNowButton" Content="Очистить сейчас" Padding="12,7" FontSize="12" Margin="0,0,8,0"/>
+         <Button x:Name="StoreOpen" Content="Открыть папку записей" Padding="12,7" FontSize="12"/>
+        </WrapPanel>
        </StackPanel>
       </Border>
      </StackPanel>

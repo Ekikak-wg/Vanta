@@ -76,7 +76,7 @@ namespace ReplayOverlay {
    if(clipsLoading)return;clipsLoading=true;
    try{string dir=ClipsDir;var info=C<TextBlock>("ClipsInfo");
     if(dir.Length==0){clips=new List<ClipFile>();info.Text="Папка записей пока неизвестна — подключитесь к OBS.";RenderClips();return;}
-    string shots=ShotDir;List<ClipFile> list;try{list=await Task.Run(()=>{var l=ClipLibrary.List(dir);if(shots.Length>0&&!string.Equals(shots.TrimEnd('\\'),dir.TrimEnd('\\'),StringComparison.OrdinalIgnoreCase))l.AddRange(ClipLibrary.List(shots));return l.OrderByDescending(c=>c.Modified).ToList();});}catch(Exception ex){list=new List<ClipFile>();info.Text="Папку не прочитать: "+ex.Message;}
+    var dirs=new[]{dir,ShotDir,replayDir}.Where(x=>x.Length>0).Select(x=>x.TrimEnd('\\')).Distinct(StringComparer.OrdinalIgnoreCase).ToList();List<ClipFile> list;try{list=await Task.Run(()=>dirs.SelectMany(x=>ClipLibrary.List(x)).OrderByDescending(c=>c.Modified).ToList());}catch(Exception ex){list=new List<ClipFile>();info.Text="Папку не прочитать: "+ex.Message;}
     allClips=list;ApplyClipFilter();string keep=select??(selectedClip==null?null:selectedClip.Path);
     long total=clips.Sum(c=>c.Size);info.Text=clips.Count==0?(clipFilter=="all"?"В папке «"+dir+"» пока нет видео и скриншотов. Сохраните повтор — он появится здесь.":"Здесь пока ничего нет."):Plural(clips.Count,"файл","файла","файлов")+" · "+ClipLibrary.Size(total)+" · "+dir;info.ToolTip=dir;
     var found=keep==null?null:clips.FirstOrDefault(c=>string.Equals(c.Path,keep,StringComparison.OrdinalIgnoreCase));
@@ -86,7 +86,8 @@ namespace ReplayOverlay {
     else if(select!=null||selectedClip==null)SelectClip(found);
     else{selectedClip=found;HighlightSelected();}}
    finally{clipsLoading=false;}}
-  static string ClipKind(ClipFile c){return c.IsImage?"shot":c.Name.StartsWith("Replay",StringComparison.OrdinalIgnoreCase)?"replay":"record";}
+  static string ClipReplayPrefix="Replay"; // приставка повторов из профиля OBS
+  static string ClipKind(ClipFile c){return c.IsImage?"shot":c.Name.StartsWith(ClipReplayPrefix,StringComparison.OrdinalIgnoreCase)?"replay":"record";}
   void ApplyClipFilter(){clips=clipFilter=="all"?allClips.ToList():allClips.Where(c=>ClipKind(c)==clipFilter).ToList();}
   static string Plural(int n,string one,string few,string many){int m=n%100,d=n%10;return n+" "+(m>=11&&m<=14?many:d==1?one:d>=2&&d<=4?few:many);}
 
@@ -176,7 +177,7 @@ namespace ReplayOverlay {
     catch(InvalidOperationException ex){if(!exact)throw;nvencError=ex.Message;}
     if(nvencError!=null){Log.Write("Обрезка: NVENC недоступен ("+nvencError+"), перекодирую процессором");TryDelete(part);
      await Ffmpeg.Run(ff,Ffmpeg.TrimArgs(c.Path,part,from,to,true,"libx264"),to-from,report,trimCancel.Token);}
-    File.Move(part,output);
+    File.Move(part,output);Track(output);
     Log.Write("Клип сохранён: "+Path.GetFileName(c.Path)+" ["+ClipLibrary.Time(from,true)+"–"+ClipLibrary.Time(to,true)+(exact?", точно":"")+"] → "+Path.GetFileName(output));
     progress.Text="";Message("Сохранено: "+Path.GetFileName(output));if(!window.IsVisible)Notify("Клип сохранён",Path.GetFileName(output));
     LoadClipsSelect(output);}
@@ -191,7 +192,7 @@ namespace ReplayOverlay {
   async Task RenameClip(){
    var c=SelectedOrThrow();string name=C<TextBox>("RenameBox").Text;string error=ClipLibrary.CheckName(name);if(error!=null)throw new InvalidOperationException(error);
    if(name.Trim()==c.Name)return;EnsureClipExists(c);
-   ClosePlayer();string target=await WithFileRetry(()=>ClipLibrary.Rename(c.Path,name));
+   ClosePlayer();string target=await WithFileRetry(()=>ClipLibrary.Rename(c.Path,name));managed.Rename(c.Path,target);SavePrefs();
    Log.Write("Клип переименован: "+Path.GetFileName(c.Path)+" → "+Path.GetFileName(target));Message("Переименовано: "+Path.GetFileName(target));
    LoadClipsSelect(target);}
 
@@ -201,7 +202,7 @@ namespace ReplayOverlay {
    try{ok=MessageBox.Show(window,"Переместить «"+c.Name+c.Extension+"» в Корзину?\nЕго можно будет восстановить из Корзины.","Replay — клипы",MessageBoxButton.OKCancel,MessageBoxImage.Question);}
    finally{dialogOpen=false;window.Activate();}
    if(ok!=MessageBoxResult.OK)return;
-   ClosePlayer();await WithFileRetry(()=>{ClipLibrary.Recycle(c.Path);return 0;});
+   ClosePlayer();await WithFileRetry(()=>{ClipLibrary.Recycle(c.Path);return 0;});managed.Remove(c.Path);SavePrefs();
    Log.Write("Клип в Корзине: "+Path.GetFileName(c.Path));Message("В Корзине: "+c.Name+c.Extension);
    CloseDetail();LoadClipsSelect(null);}
 
