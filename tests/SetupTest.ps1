@@ -25,7 +25,8 @@ try {
  Check (Test-Path (Join-Path $root 'StartMenu\Replay OBS\Replay Overlay.lnk')) 'install: Start menu shortcut'
  Check (-not (Test-Path (Join-Path $root 'Desktop\Replay Overlay.lnk'))) 'install: no desktop shortcut by default'
  $run = (Get-ItemProperty "$reg\Run" -ErrorAction SilentlyContinue).'Replay Overlay'
- Check ($run -like '*ReplayOverlay.exe" --hidden') 'install: autostart entry with --hidden'
+ Check ($run -like '*ReplayOverlay.exe" --hidden --from=run') 'install: autostart entry with --hidden'
+ Check (Test-Path (Join-Path $root 'Startup\Replay Overlay.lnk')) 'install: Startup folder shortcut (second autostart path)'
  $un = Get-ItemProperty "$reg\Uninstall\ReplayOBS" -ErrorAction SilentlyContinue
  Check ($un.DisplayName -eq 'Replay OBS' -and $un.DisplayVersion -match '^\d+\.\d+\.\d+$' -and $un.UninstallString -like '*uninstall.exe" --uninstall') 'install: Apps & features entry'
  $ws = Ws
@@ -42,6 +43,7 @@ try {
  $prefs = Get-Content $prefsFile -Raw | ConvertFrom-Json
  Check ($prefs.launchObs -eq $false -and $prefs.excluded[0] -eq 'Telegram') 'update: launchObs switched off, other overlay settings kept'
  Check ($null -eq (Get-ItemProperty "$reg\Run" -ErrorAction SilentlyContinue).'Replay Overlay') 'update: autostart removed'
+ Check (-not (Test-Path (Join-Path $root 'Startup\Replay Overlay.lnk'))) 'update: Startup folder shortcut removed'
  Check (Test-Path (Join-Path $root 'Desktop\Replay Overlay.lnk')) 'update: desktop shortcut created'
  Check ((Get-FileHash (Join-Path $install 'ReplayOverlay.exe')).Hash -eq $hash) 'update: same overlay binary'
  Check ((Ws).server_password -eq 'keep-this-pass') 'update: enabled WebSocket left untouched'

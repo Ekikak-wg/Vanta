@@ -18,7 +18,8 @@ using ReplayOverlay;
 namespace ReplaySetup {
  // Куда ставить. В тестовом режиме (--test-root) всё уходит в отдельную папку и ветку реестра.
  sealed class Paths {
-  public string InstallDir,StartMenuDir,DesktopDir,WebSocketConfig,RegistryRoot; public bool Test;
+  public string InstallDir,StartMenuDir,DesktopDir,StartupDir,WebSocketConfig,RegistryRoot; public bool Test;
+  public string StartupShortcut { get { return Path.Combine(StartupDir,"Replay Overlay.lnk"); } }
   public string Exe { get { return Path.Combine(InstallDir,"ReplayOverlay.exe"); } }
   public string Uninstaller { get { return Path.Combine(InstallDir,"uninstall.exe"); } }
   public string RunKey { get { return RegistryRoot+@"\Run"; } }
@@ -28,12 +29,13 @@ namespace ReplaySetup {
     InstallDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Programs\Replay OBS"),
     StartMenuDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),"Replay OBS"),
     DesktopDir=Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+    StartupDir=Environment.GetFolderPath(Environment.SpecialFolder.Startup),
     WebSocketConfig=ObsConfig.WebSocketConfig,
     RegistryRoot=@"Software\Microsoft\Windows\CurrentVersion"};
   }
   public static Paths ForTest(string root) {
    root=Path.GetFullPath(root);
-   return new Paths{Test=true,InstallDir=Path.Combine(root,@"Programs\Replay OBS"),StartMenuDir=Path.Combine(root,@"StartMenu\Replay OBS"),DesktopDir=Path.Combine(root,"Desktop"),
+   return new Paths{Test=true,InstallDir=Path.Combine(root,@"Programs\Replay OBS"),StartMenuDir=Path.Combine(root,@"StartMenu\Replay OBS"),DesktopDir=Path.Combine(root,"Desktop"),StartupDir=Path.Combine(root,"Startup"),
     WebSocketConfig=Path.Combine(root,@"obs-studio\plugin_config\obs-websocket\config.json"),RegistryRoot=@"Software\ReplayOBS-Test"};
   }
  }
@@ -111,9 +113,13 @@ namespace ReplaySetup {
    Shortcut(Path.Combine(p.StartMenuDir,"Replay Overlay.lnk"),p.Exe,"","Меню повторов OBS");
    string desktop=Path.Combine(p.DesktopDir,"Replay Overlay.lnk");
    if(o.Desktop){Directory.CreateDirectory(p.DesktopDir);Shortcut(desktop,p.Exe,"","Меню повторов OBS");} else if(File.Exists(desktop))File.Delete(desktop);
+   // Автозапуск двумя независимыми способами: раздел Run и ярлык в «Автозагрузке». Explorer обрабатывает их разными путями,
+   // и на части систем запись Run пропускается без объяснений. Если сработают оба — вторая копия меню тихо закроется.
    using(var run=Registry.CurrentUser.CreateSubKey(p.RunKey)) {
-    if(o.Autostart)run.SetValue("Replay Overlay","\""+p.Exe+"\" --hidden"); else run.DeleteValue("Replay Overlay",false);
+    if(o.Autostart)run.SetValue("Replay Overlay","\""+p.Exe+"\" --hidden --from=run"); else run.DeleteValue("Replay Overlay",false);
    }
+   if(o.Autostart){Directory.CreateDirectory(p.StartupDir);Shortcut(p.StartupShortcut,p.Exe,"--hidden --from=startup","Меню повторов OBS — автозапуск");}
+   else if(File.Exists(p.StartupShortcut))File.Delete(p.StartupShortcut);
    log.Add(o.Autostart?"Меню будет запускаться вместе с Windows":"Автозапуск выключен");
 
    if(o.WebSocket)log.Add(EnableWebSocket(p));
@@ -136,6 +142,7 @@ namespace ReplaySetup {
    Registry.CurrentUser.DeleteSubKeyTree(p.UninstallKey,false);
    if(Directory.Exists(p.StartMenuDir))Directory.Delete(p.StartMenuDir,true);
    string desktop=Path.Combine(p.DesktopDir,"Replay Overlay.lnk"); if(File.Exists(desktop))File.Delete(desktop);
+   if(File.Exists(p.StartupShortcut))File.Delete(p.StartupShortcut);
    if(!Directory.Exists(p.InstallDir))return;
    string self=Path.GetFullPath(Assembly.GetExecutingAssembly().Location);
    foreach(string f in Directory.GetFiles(p.InstallDir))if(!string.Equals(Path.GetFullPath(f),self,StringComparison.OrdinalIgnoreCase))File.Delete(f);
