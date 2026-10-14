@@ -27,6 +27,8 @@ namespace ReplayOverlay {
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int command);
   [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern bool AllowSetForegroundWindow(int processId);
+  [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int key);
+  [DllImport("user32.dll")] public static extern void keybd_event(byte key,byte scan,uint flags,UIntPtr extra);
  }
  sealed class Owner : WF.IWin32Window { readonly IntPtr h; public Owner(IntPtr handle){h=handle;} public IntPtr Handle{get{return h;}} }
  public sealed partial class Overlay {
@@ -146,8 +148,13 @@ namespace ReplayOverlay {
   public void Show(){Ui(()=>{if(window.IsVisible&&window.IsActive)return;var fg=Native.GetForegroundWindow();if(fg!=handle&&!window.IsVisible)previousForeground=fg;Position();window.Show();window.Activate();Native.SetForegroundWindow(handle);Run(Refresh);});}
   // Фокус отдаём игре, пока меню ещё на переднем плане: скрытое окно уже не имеет права его передать,
   // Windows остаётся без активного окна, и игра (Warframe) не прячет курсор даже после щелчка.
+  // Ещё: Warframe снова прячет курсор, только если активируется, пока зажат Alt (как при Alt+Tab или закрытии по Alt+Z).
+  // Поэтому при закрытии по Esc или «×» Alt на мгновение зажимается сам — если пользователь его не держит.
   void Hide(){if(!window.IsVisible)return;var back=previousForeground;previousForeground=IntPtr.Zero;bool ok=back!=IntPtr.Zero&&Native.IsWindow(back);
-   if(ok)Native.SetForegroundWindow(back);window.Hide();if(ok&&Native.GetForegroundWindow()!=back)Native.SetForegroundWindow(back);}
+   bool altHeld=(Native.GetAsyncKeyState(0x12)&0x8000)!=0,tap=ok&&!altHeld;
+   if(tap)Native.keybd_event(0x12,0x38,0,UIntPtr.Zero);
+   try{if(ok)Native.SetForegroundWindow(back);window.Hide();if(ok&&Native.GetForegroundWindow()!=back)Native.SetForegroundWindow(back);}
+   finally{if(tap)Native.keybd_event(0x12,0x38,2,UIntPtr.Zero);}}
   public Window Window {get{return window;}}
   public static string StartedFrom=""; // каким способом запущено: --from=run / --from=startup (для журнала)
   static System.Drawing.Icon AppIcon(){try{return System.Drawing.Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location);}catch{return System.Drawing.SystemIcons.Application;}}
