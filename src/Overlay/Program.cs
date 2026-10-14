@@ -112,7 +112,7 @@ namespace ReplayOverlay {
   IntPtr Hook(IntPtr hwnd,int msg,IntPtr wParam,IntPtr lParam,ref bool handled){if(msg==0x0312){int i=wParam.ToInt32()-100;if(i>=0&&i<Actions.Length){DoAction(Actions[i][0]);handled=true;}}return IntPtr.Zero;}
   // Глобальное сочетание сработало. Если меню скрыто — результат показываем всплывающим уведомлением.
   void DoAction(string action){
-   if(action=="menu"){if(window.IsVisible)Hide();else Show();return;}
+   if(action=="menu"){if(window.IsVisible)Hide();else ShowAfterKeysReleased();return;}
    if(action=="save"){Run(SaveReplay);return;}
    if(action=="clips"){Show();Ui(OpenClips);return;}
    if(action=="shot"){Run(TakeScreenshot);return;}

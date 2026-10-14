@@ -73,6 +73,17 @@ namespace ReplayOverlay {
    C<Grid>("DiskRow").ToolTip="Занято: "+DiskInfo.Gb(d.Total-d.Free)+" / "+DiskInfo.Gb(d.Total)+" · "+folder;
    if(d.Free<5L*1024*1024*1024)Warn("disk-"+d.Name,"Недостаточно места на диске: "+d.Name+" — "+DiskInfo.Gb(d.Free)+" свободно");}
 
+  // Меню по сочетанию открывается, только когда клавиши отпущены. Иначе отпускание Alt получает уже меню,
+  // а игра (например, Warframe) так и считает Alt зажатым — и держит курсор поверх игры даже после закрытия меню.
+  [System.Runtime.InteropServices.DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
+  DispatcherTimer keyWait;
+  void ShowAfterKeysReleased(){
+   if(keyWait!=null&&keyWait.IsEnabled)return;Hotkey k=HotkeyFor("menu");var started=DateTime.Now;
+   keyWait=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(15)};
+   keyWait.Tick+=(s,e)=>{bool held=new[]{0x10,0x11,0x12,0x5B,0x5C}.Any(vk=>(GetAsyncKeyState(vk)&0x8000)!=0)||(k!=null&&(GetAsyncKeyState((int)k.VirtualKey)&0x8000)!=0);
+    if(held&&(DateTime.Now-started).TotalMilliseconds<1500)return;keyWait.Stop();Show();};
+   keyWait.Start();}
+
   // ——— Подсказка клавиш справа снизу ———
   void ShowKeysPanel(){if(!keysPanelOn||!window.IsVisible)return;
    var list=new List<KeyValuePair<string,string>>();
