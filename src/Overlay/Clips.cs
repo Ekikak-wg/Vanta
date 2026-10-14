@@ -126,7 +126,8 @@ namespace ReplayOverlay {
      if((k=="out_time_us"||k=="out_time_ms")&&long.TryParse(e.Data.Substring(eq+1),out us))progress(Math.Max(0,Math.Min(1,us/1e6/seconds)));};
     p.ErrorDataReceived+=(s,e)=>{if(e.Data!=null&&e.Data.Trim().Length>0)lock(tail){tail.Enqueue(e.Data.Trim());while(tail.Count>8)tail.Dequeue();}};
     p.Exited+=(s,e)=>exited.TrySetResult(true);
-    p.Start();p.BeginOutputReadLine();p.BeginErrorReadLine();
+    p.Start();try{p.PriorityClass=ProcessPriorityClass.BelowNormal;}catch(Exception){} // игра и OBS важнее
+    p.BeginOutputReadLine();p.BeginErrorReadLine();
     using(cancel.Register(()=>{try{if(!p.HasExited)p.Kill();}catch(Exception){}}))await exited.Task.ConfigureAwait(false);
     p.WaitForExit();
     cancel.ThrowIfCancellationRequested();
