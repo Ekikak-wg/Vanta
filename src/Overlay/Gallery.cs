@@ -18,7 +18,7 @@ namespace ReplayOverlay {
  // Галерея клипов: список с миниатюрами, предпросмотр, обрезка, переименование, удаление в Корзину. И индикатор записи.
  public sealed partial class Overlay {
   const int ClipsPageSize=40;
-  List<ClipFile> clips=new List<ClipFile>();int clipsShown=ClipsPageSize;ClipFile selectedClip;ClipInfoLoader clipLoader;
+  List<ClipFile> allClips=new List<ClipFile>(),clips=new List<ClipFile>();string clipFilter="all";int clipsShown=ClipsPageSize;ClipFile selectedClip;ClipInfoLoader clipLoader;
   readonly Dictionary<string,Image> clipImages=new Dictionary<string,Image>(StringComparer.OrdinalIgnoreCase);
   readonly Dictionary<string,TextBlock> clipLines=new Dictionary<string,TextBlock>(StringComparer.OrdinalIgnoreCase);
   readonly Dictionary<string,Border> clipRows=new Dictionary<string,Border>(StringComparer.OrdinalIgnoreCase);
@@ -32,21 +32,15 @@ namespace ReplayOverlay {
   MediaElement Player{get{return C<MediaElement>("Player");}}
   static readonly CultureInfo Ru=CultureInfo.GetCultureInfo("ru-RU");
 
-  void ShowPage(string page){
-   C<StackPanel>("MainPage").Visibility=page=="main"?Visibility.Visible:Visibility.Collapsed;
-   C<StackPanel>("SettingsPage").Visibility=page=="settings"?Visibility.Visible:Visibility.Collapsed;
-   C<StackPanel>("ClipsPage").Visibility=page=="clips"?Visibility.Visible:Visibility.Collapsed;
-   if(page!="clips")ClosePlayer();
-   C<ScrollViewer>("PageScroll").ScrollToTop();}
   void OpenClips(){ShowPage("clips");Run(LoadClips);}
   // Ищем ffmpeg один раз; не нашли — ищем снова при следующем действии (могли установить).
   string FindFfmpeg(){string f=ffmpegFound;if(f!=null&&File.Exists(f))return f;f=Ffmpeg.Find(ffmpegPath);ffmpegFound=f;return f;}
 
   void BindClips(){
    clipLoader=new ClipInfoLoader((c,b)=>Ui(()=>ClipInfoReady(c,b)));clipLoader.FfmpegPath=FindFfmpeg;
-   C<Button>("ClipsBackButton").Click+=(s,e)=>ShowPage("main");
    C<Button>("ClipsFolderButton").Click+=(s,e)=>Run(OpenClipsFolder);
    C<Button>("MoreClipsButton").Click+=(s,e)=>{clipsShown+=ClipsPageSize;RenderClips();};
+   foreach(var f in new[]{new[]{"FilterAll","all"},new[]{"FilterRecords","record"},new[]{"FilterReplays","replay"},new[]{"FilterShots","shot"}}){string tag=f[1];C<RadioButton>(f[0]).Click+=(s,e)=>{clipFilter=tag;clipsShown=ClipsPageSize;ApplyClipFilter();RenderClips();};}
    var player=Player;player.IsMuted=!previewSound;
    // Длительность — из Windows/ffprobe: проигрыватель у некоторых MP4 занижает её (4,0 с вместо 4,5 с у отрезка из ffmpeg).
    player.MediaOpened+=(s,e)=>{if(selectedClip==null)return;double d=selectedClip.Seconds>0?selectedClip.Seconds:player.NaturalDuration.HasTimeSpan?player.NaturalDuration.TimeSpan.TotalSeconds:-1;SetClipLength(d);C<TextBlock>("PlayerMessage").Text="";};
@@ -82,9 +76,9 @@ namespace ReplayOverlay {
    if(clipsLoading)return;clipsLoading=true;
    try{string dir=ClipsDir;var info=C<TextBlock>("ClipsInfo");
     if(dir.Length==0){clips=new List<ClipFile>();info.Text="Папка записей пока неизвестна — подключитесь к OBS.";RenderClips();return;}
-    List<ClipFile> list;try{list=await Task.Run(()=>ClipLibrary.List(dir));}catch(Exception ex){list=new List<ClipFile>();info.Text="Папку не прочитать: "+ex.Message;}
-    clips=list;string keep=select??(selectedClip==null?null:selectedClip.Path);
-    long total=clips.Sum(c=>c.Size);info.Text=clips.Count==0?"В папке «"+dir+"» пока нет видео. Сохраните повтор — он появится здесь.":Plural(clips.Count,"файл","файла","файлов")+" · "+ClipLibrary.Size(total)+" · "+dir;info.ToolTip=dir;
+    string shots=ShotDir;List<ClipFile> list;try{list=await Task.Run(()=>{var l=ClipLibrary.List(dir);if(shots.Length>0&&!string.Equals(shots.TrimEnd('\\'),dir.TrimEnd('\\'),StringComparison.OrdinalIgnoreCase))l.AddRange(ClipLibrary.List(shots));return l.OrderByDescending(c=>c.Modified).ToList();});}catch(Exception ex){list=new List<ClipFile>();info.Text="Папку не прочитать: "+ex.Message;}
+    allClips=list;ApplyClipFilter();string keep=select??(selectedClip==null?null:selectedClip.Path);
+    long total=clips.Sum(c=>c.Size);info.Text=clips.Count==0?(clipFilter=="all"?"В папке «"+dir+"» пока нет видео и скриншотов. Сохраните повтор — он появится здесь.":"Здесь пока ничего нет."):Plural(clips.Count,"файл","файла","файлов")+" · "+ClipLibrary.Size(total)+" · "+dir;info.ToolTip=dir;
     var found=keep==null?null:clips.FirstOrDefault(c=>string.Equals(c.Path,keep,StringComparison.OrdinalIgnoreCase));
     if(found!=null){int index=clips.IndexOf(found);if(index>=clipsShown)clipsShown=(index/ClipsPageSize+1)*ClipsPageSize;}
     RenderClips();
@@ -92,6 +86,8 @@ namespace ReplayOverlay {
     else if(select!=null||selectedClip==null)SelectClip(found);
     else{selectedClip=found;HighlightSelected();}}
    finally{clipsLoading=false;}}
+  static string ClipKind(ClipFile c){return c.IsImage?"shot":c.Name.StartsWith("Replay",StringComparison.OrdinalIgnoreCase)?"replay":"record";}
+  void ApplyClipFilter(){clips=clipFilter=="all"?allClips.ToList():allClips.Where(c=>ClipKind(c)==clipFilter).ToList();}
   static string Plural(int n,string one,string few,string many){int m=n%100,d=n%10;return n+" "+(m>=11&&m<=14?many:d==1?one:d>=2&&d<=4?few:many);}
 
   void RenderClips(){
@@ -113,7 +109,7 @@ namespace ReplayOverlay {
    var row=new Border{Background=Brush("#1D2227"),CornerRadius=new CornerRadius(8),Padding=new Thickness(6),Margin=new Thickness(0,0,0,6),Cursor=Cursors.Hand,Child=g};
    row.MouseEnter+=(s,e)=>row.Opacity=0.85;row.MouseLeave+=(s,e)=>row.Opacity=1;row.MouseLeftButtonUp+=(s,e)=>SelectClip(c);
    clipImages[c.Path]=img;clipLines[c.Path]=line;clipRows[c.Path]=row;return row;}
-  static string ClipLine(ClipFile c){return c.Modified.ToString("d MMM, HH:mm",Ru)+(c.Seconds>=0?" · "+ClipLibrary.Time(c.Seconds):"")+" · "+ClipLibrary.Size(c.Size)+" · "+c.Extension.TrimStart('.').ToUpperInvariant();}
+  static string ClipLine(ClipFile c){string k=ClipKind(c)=="shot"?"скриншот":ClipKind(c)=="replay"?"повтор":"запись";return k+" · "+c.Modified.ToString("d MMM, HH:mm",Ru)+(c.IsImage?(c.Width>0?" · "+c.Width+"×"+c.Height:""):c.Seconds>=0?" · "+ClipLibrary.Time(c.Seconds):"")+" · "+ClipLibrary.Size(c.Size)+" · "+c.Extension.TrimStart('.').ToUpperInvariant();}
   void ClipInfoReady(ClipFile c,BitmapSource b){
    Image img;if(b!=null&&clipImages.TryGetValue(c.Path,out img))img.Source=b;
    TextBlock line;if(clipLines.TryGetValue(c.Path,out line))line.Text=ClipLine(c);
@@ -127,6 +123,8 @@ namespace ReplayOverlay {
    C<StackPanel>("ClipDetail").Visibility=Visibility.Visible;C<TextBlock>("ClipTitle").Text=c.Name+c.Extension;
    C<TextBox>("RenameBox").Text=c.Name;C<CheckBox>("Mp4Box").Visibility=c.Extension.ToLowerInvariant()==".mp4"?Visibility.Collapsed:Visibility.Visible;
    C<TextBlock>("TrimProgress").Text="";bool busyFile=ClipLibrary.InUse(c.Path);
+   C<StackPanel>("VideoControls").Visibility=c.IsImage?Visibility.Collapsed:Visibility.Visible;var view=C<Image>("ShotView");view.Visibility=c.IsImage?Visibility.Visible:Visibility.Collapsed;view.Source=null;
+   if(c.IsImage){C<TextBlock>("PlayerMessage").Text="";try{var bi=new BitmapImage();bi.BeginInit();bi.CacheOption=BitmapCacheOption.OnLoad;bi.DecodePixelWidth=1280;bi.UriSource=new Uri(c.Path);bi.EndInit();bi.Freeze();view.Source=bi;}catch(Exception ex){C<TextBlock>("PlayerMessage").Text="Изображение не открыть: "+ex.Message;}C<TextBox>("RenameBox").Text=c.Name;C<StackPanel>("ClipDetail").Visibility=Visibility.Visible;C<TextBlock>("ClipTitle").Text=c.Name+c.Extension;foreach(string n in new[]{"RenameButton","DeleteClipButton"})C<Button>(n).IsEnabled=true;C<ScrollViewer>("PageScroll").ScrollToTop();return;}
    foreach(string n in new[]{"TrimButton","RenameButton","DeleteClipButton"})C<Button>(n).IsEnabled=!busyFile||(n=="TrimButton"&&trimBusy);
    C<FrameworkElement>("FfmpegPanel").Visibility=FindFfmpeg()==null?Visibility.Visible:Visibility.Collapsed;
    var msg=C<TextBlock>("PlayerMessage");
@@ -136,7 +134,7 @@ namespace ReplayOverlay {
   void CloseDetail(){ClosePlayer();selectedClip=null;C<StackPanel>("ClipDetail").Visibility=Visibility.Collapsed;HighlightSelected();}
   void SetClipLength(double seconds){clipLength=Math.Max(0,seconds);trimStart=0;trimEnd=clipLength;syncing=true;var sl=C<Slider>("PlaySlider");sl.Maximum=Math.Max(0.1,clipLength);sl.Value=0;syncing=false;UpdatePlayTime();RenderTrim();}
 
-  void ClosePlayer(){if(playTimer!=null)playTimer.Stop();playing=false;var p=Player;try{p.Stop();p.Close();p.Source=null;}catch(Exception){}UpdatePlayButton();}
+  void ClosePlayer(){var sv=C<Image>("ShotView");if(sv!=null)sv.Source=null;if(playTimer!=null)playTimer.Stop();playing=false;var p=Player;try{p.Stop();p.Close();p.Source=null;}catch(Exception){}UpdatePlayButton();}
   void PausePlayer(){if(!playing)return;Player.Pause();playing=false;playTimer.Stop();UpdatePlayButton();}
   void TogglePlay(){if(selectedClip==null||Player.Source==null)return;
    if(playing){PausePlayer();return;}

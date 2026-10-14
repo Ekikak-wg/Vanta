@@ -18,19 +18,22 @@ namespace ReplayOverlay {
  public sealed class ClipFile {
   public string Path,Name,Extension; public DateTime Modified; public long Size;
   public double Seconds=-1; // длительность; -1 — ещё не известна
+  public bool IsImage; public int Width,Height; // скриншоты
  }
 
  // Список клипов, имена, переименование, удаление в Корзину.
  public static class ClipLibrary {
   public static readonly string[] Extensions={".mp4",".mkv",".mov",".flv",".ts",".m4v",".webm"};
+  public static readonly string[] ImageExtensions={".png",".jpg",".jpeg"};
   public static bool IsVideo(string path){return Extensions.Contains(System.IO.Path.GetExtension(path)??"",StringComparer.OrdinalIgnoreCase);}
+  public static bool IsImage(string path){return ImageExtensions.Contains(System.IO.Path.GetExtension(path)??"",StringComparer.OrdinalIgnoreCase);}
 
   // Видео из папки (без вложенных), новые сверху.
   public static List<ClipFile> List(string dir) {
    var list=new List<ClipFile>();if(string.IsNullOrEmpty(dir)||!Directory.Exists(dir))return list;
    foreach(var f in new DirectoryInfo(dir).EnumerateFiles()){
-    if(!IsVideo(f.Name)||(f.Attributes&(FileAttributes.Hidden|FileAttributes.System))!=0)continue;
-    list.Add(new ClipFile{Path=f.FullName,Name=System.IO.Path.GetFileNameWithoutExtension(f.Name),Extension=f.Extension,Modified=f.LastWriteTime,Size=f.Length});}
+    bool image=IsImage(f.Name);if((!IsVideo(f.Name)&&!image)||(f.Attributes&(FileAttributes.Hidden|FileAttributes.System))!=0)continue;
+    list.Add(new ClipFile{IsImage=image,Path=f.FullName,Name=System.IO.Path.GetFileNameWithoutExtension(f.Name),Extension=f.Extension,Modified=f.LastWriteTime,Size=f.Length});}
    return list.OrderByDescending(c=>c.Modified).ThenBy(c=>c.Name,StringComparer.OrdinalIgnoreCase).ToList();
   }
 
@@ -215,9 +218,11 @@ namespace ReplayOverlay {
   public void Request(IEnumerable<ClipFile> clips){lock(gate){queue.Clear();foreach(var c in clips)if(!cache.ContainsKey(Key(c)))queue.Enqueue(c);Monitor.Pulse(gate);}}
   void Work(){
    while(true){ClipFile c;lock(gate){while(queue.Count==0&&!stop)Monitor.Wait(gate);if(stop)return;c=queue.Dequeue();}
-    double d=ShellMedia.Duration(c.Path);string ff=FfmpegPath();if(d<=0)d=Ffmpeg.Duration(Ffmpeg.Probe(ff),c.Path);c.Seconds=d;
+    double d=-1;string ff=FfmpegPath();
+    if(c.IsImage){try{var dec=BitmapDecoder.Create(new Uri(c.Path),BitmapCreateOptions.DelayCreation,BitmapCacheOption.None);c.Width=dec.Frames[0].PixelWidth;c.Height=dec.Frames[0].PixelHeight;}catch(Exception){}}
+    else{d=ShellMedia.Duration(c.Path);if(d<=0)d=Ffmpeg.Duration(Ffmpeg.Probe(ff),c.Path);}c.Seconds=d;
     BitmapSource b=ShellMedia.Thumbnail(c.Path,224);
-    if(b==null){string jpg=Ffmpeg.Thumbnail(ff,c,224);if(jpg!=null){try{var img=new BitmapImage();img.BeginInit();img.CacheOption=BitmapCacheOption.OnLoad;img.UriSource=new Uri(jpg);img.EndInit();img.Freeze();b=img;}catch(Exception){}}}
+    if(b==null&&!c.IsImage){string jpg=Ffmpeg.Thumbnail(ff,c,224);if(jpg!=null){try{var img=new BitmapImage();img.BeginInit();img.CacheOption=BitmapCacheOption.OnLoad;img.UriSource=new Uri(jpg);img.EndInit();img.Freeze();b=img;}catch(Exception){}}}
     lock(gate){cache[Key(c)]=b;durations[Key(c)]=d;}
     try{done(c,b);}catch(Exception){}}
   }
