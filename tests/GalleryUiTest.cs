@@ -77,7 +77,7 @@ static class GalleryUiTest {
    C<Slider>("PlaySlider").Value=2.0;Pump(()=>false,200);Call("SetTrim",true);
    C<Slider>("PlaySlider").Value=6.5;Pump(()=>false,200);Call("SetTrim",false);
    Check(Math.Abs(Field<double>("trimStart")-2)<0.05&&Math.Abs(Field<double>("trimEnd")-6.5)<0.05,"отрезок 2–6,5 с задан кнопками «Начало здесь» / «Конец здесь»");
-   Check(C<TextBlock>("TrimInfo").Text.StartsWith("Отрезок 0:02,0 – 0:06,5 · 0:04,5"),"подпись отрезка: "+C<TextBlock>("TrimInfo").Text);
+   Check(C<TextBlock>("TrimInfo").Text.StartsWith("Отрезок 0:02,0 – 0:06,5 · 0:04,5 — отмечен зелёным"),"подпись отрезка: "+C<TextBlock>("TrimInfo").Text);
    C<Slider>("PlaySlider").Value=1.0;Pump(()=>false,100);Call("SetTrim",false);
    Check(Math.Abs(Field<double>("trimEnd")-6.5)<0.05,"конец раньше начала — не принимается");
    Pump(()=>false,300);Snap(Path.Combine(shots,"gallery-detail.png"));

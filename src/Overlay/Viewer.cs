@@ -32,13 +32,14 @@ namespace ReplayOverlay {
    var bar=new StackPanel{Orientation=Orientation.Horizontal,Margin=new Thickness(20,10,20,20),HorizontalAlignment=HorizontalAlignment.Center};Grid.SetRow(bar,1);
    var title=new TextBlock{Text=System.IO.Path.GetFileName(path),FontSize=14,Foreground=B("#C4CAD2"),Margin=new Thickness(20,16,0,0),HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Top};
    var close=Btn("","Закрыть (Esc)");close.HorizontalAlignment=HorizontalAlignment.Right;close.VerticalAlignment=VerticalAlignment.Top;close.Margin=new Thickness(0,12,16,0);close.Click+=(s,e)=>w.Close();
+   Style sliderStyle=owner.TryFindResource(typeof(Slider)) as Style; // те же ползунки, что в меню
    if(!isImage){
     player=new MediaElement{LoadedBehavior=MediaState.Manual,UnloadedBehavior=MediaState.Close,ScrubbingEnabled=true,Stretch=Stretch.Uniform,Volume=volume,IsMuted=muted,Source=new Uri(path)};root.Children.Add(player);
     play=Btn("","Пауза (пробел)");play.Click+=(s,e)=>Toggle();bar.Children.Add(play);
-    seek=new Slider{Width=Math.Max(300,area.Width*0.45),VerticalAlignment=VerticalAlignment.Center,IsMoveToPointEnabled=true,Margin=new Thickness(4,0,12,0)};seek.ValueChanged+=(s,e)=>{if(!syncing)player.Position=TimeSpan.FromSeconds(e.NewValue);UpdateTime();};bar.Children.Add(seek);
+    seek=new Slider{Width=Math.Max(300,area.Width*0.45),VerticalAlignment=VerticalAlignment.Center,IsMoveToPointEnabled=true,Margin=new Thickness(4,0,12,0)};seek.ValueChanged+=(s,e)=>{if(!syncing)player.Position=TimeSpan.FromSeconds(e.NewValue);UpdateTime();};if(sliderStyle!=null)seek.Style=sliderStyle;bar.Children.Add(seek);
     time=new TextBlock{FontSize=13,Foreground=B("#C4CAD2"),VerticalAlignment=VerticalAlignment.Center,Width=120};bar.Children.Add(time);
     var mute=Btn(muted?"":"","Звук вкл / выкл");mute.Click+=(s,e)=>{player.IsMuted=!player.IsMuted;((TextBlock)mute.Content).Text=player.IsMuted?"":"";};bar.Children.Add(mute);
-    var vol=new Slider{Width=110,Minimum=0,Maximum=1,Value=volume,VerticalAlignment=VerticalAlignment.Center,ToolTip="Громкость"};vol.ValueChanged+=(s,e)=>{player.Volume=e.NewValue;if(player.IsMuted&&e.NewValue>0){player.IsMuted=false;((TextBlock)mute.Content).Text="";}};bar.Children.Add(vol);
+    var vol=new Slider{Width=110,Minimum=0,Maximum=1,Value=volume,VerticalAlignment=VerticalAlignment.Center,ToolTip="Громкость"};vol.ValueChanged+=(s,e)=>{player.Volume=e.NewValue;if(player.IsMuted&&e.NewValue>0){player.IsMuted=false;((TextBlock)mute.Content).Text="";}};if(sliderStyle!=null)vol.Style=sliderStyle;bar.Children.Add(vol);
     player.MediaOpened+=(s,e)=>{if(player.NaturalDuration.HasTimeSpan)seek.Maximum=player.NaturalDuration.TimeSpan.TotalSeconds;player.Position=TimeSpan.FromSeconds(position);player.Play();playing=true;timer.Start();UpdateTime();};
     player.MediaEnded+=(s,e)=>{playing=false;player.Pause();((TextBlock)play.Content).Text="";};
     timer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(200)};timer.Tick+=(s,e)=>{syncing=true;seek.Value=player.Position.TotalSeconds;syncing=false;UpdateTime();};

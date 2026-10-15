@@ -200,9 +200,12 @@ namespace ReplayOverlay {
    RenderTrim();}
   void RenderTrim(){
    var bar=C<Canvas>("TrimBar");var r=C<System.Windows.Shapes.Rectangle>("TrimRange");double w=bar.ActualWidth;
-   if(clipLength<=0||w<=0){r.Width=0;}else{Canvas.SetLeft(r,trimStart/clipLength*w);r.Width=Math.Max(2,(trimEnd-trimStart)/clipLength*w);}
    bool whole=clipLength>0&&trimStart<=0.05&&trimEnd>=clipLength-0.05;
-   C<TextBlock>("TrimInfo").Text=clipLength<=0?"Длительность неизвестна — обрезка недоступна.":(whole?"Весь клип":"Отрезок "+ClipLibrary.Time(trimStart,true)+" – "+ClipLibrary.Time(trimEnd,true))+" · "+ClipLibrary.Time(trimEnd-trimStart,true);
+   var sm=C<System.Windows.Shapes.Rectangle>("TrimStartMark");var em=C<System.Windows.Shapes.Rectangle>("TrimEndMark");
+   // Отрезок рисуется прямо на шкале: зелёный участок и метки начала и конца. Пока выбран весь клип — шкала серая.
+   if(clipLength<=0||w<=0||whole){r.Width=0;sm.Visibility=em.Visibility=Visibility.Hidden;}
+   else{double x0=trimStart/clipLength*w,x1=trimEnd/clipLength*w;Canvas.SetLeft(r,x0);r.Width=Math.Max(2,x1-x0);Canvas.SetLeft(sm,x0-1.5);Canvas.SetLeft(em,x1-1.5);sm.Visibility=em.Visibility=Visibility.Visible;}
+   C<TextBlock>("TrimInfo").Text=clipLength<=0?"Длительность неизвестна — обрезка недоступна.":whole?"Сохранится весь клип ("+ClipLibrary.Time(clipLength,true)+"). Чтобы вырезать часть — поставьте бегунок и нажмите «Начало здесь» и «Конец здесь».":"Отрезок "+ClipLibrary.Time(trimStart,true)+" – "+ClipLibrary.Time(trimEnd,true)+" · "+ClipLibrary.Time(trimEnd-trimStart,true)+" — отмечен зелёным на шкале";
    if(!trimBusy)C<Button>("TrimButton").Content=whole&&selectedClip!=null&&selectedClip.Extension.ToLowerInvariant()!=".mp4"?"Сохранить копию":"Сохранить отрезок";}
 
   void UpdateTrimOptions(){
