@@ -81,6 +81,17 @@ namespace ReplaySetup {
    return new string(bytes.Select(b=>alphabet[b%alphabet.Length]).ToArray());
   }
 
+  // Что выбрано у уже установленной версии — при обновлении это сохраняется (галочки установщика и тихий режим без ключей).
+  public sealed class Current { public bool Installed,Autostart,Desktop,LaunchObs=true; }
+  public static Current CurrentState(Paths p) {
+   var c=new Current{Installed=InstalledVersion(p)!=null};
+   if(!c.Installed)return c;
+   using(var run=Registry.CurrentUser.OpenSubKey(p.RunKey))c.Autostart=File.Exists(p.StartupShortcut)||(run!=null&&run.GetValue("Replay Overlay")!=null);
+   c.Desktop=File.Exists(Path.Combine(p.DesktopDir,"Replay Overlay.lnk"));
+   try{string prefs=Path.Combine(p.InstallDir,"overlay-settings.json");if(File.Exists(prefs)){var cfg=Json.Decode(File.ReadAllText(prefs));if(cfg.ContainsKey("launchObs"))c.LaunchObs=Json.Bool(cfg,"launchObs");}}catch{}
+   return c;
+  }
+
   // Закрывает установленное меню (сигнал выхода, затем принудительно — только процессы из папки установки).
   public static void StopOverlay(Paths p) {
    if(p.Test)return;
@@ -187,7 +198,8 @@ namespace ReplaySetup {
    int port; bool? socket=Installer.WebSocketEnabled(p,out port);
    C<TextBlock>("SocketLabel").Text=socket==true?"включён (порт "+port+")":socket==false?"выключен — установщик может включить":"настройка не найдена — будет создана";
    if(socket==true){C<CheckBox>("SocketBox").IsChecked=true;C<CheckBox>("SocketBox").IsEnabled=false;}
-   if(installed!=null){C<Button>("InstallButton").Content="Обновить";C<Button>("UninstallButton").Visibility=Visibility.Visible;}
+   if(installed!=null){C<Button>("InstallButton").Content="Обновить";C<Button>("UninstallButton").Visibility=Visibility.Visible;
+    var cur=Installer.CurrentState(p);C<CheckBox>("AutostartBox").IsChecked=cur.Autostart;C<CheckBox>("DesktopBox").IsChecked=cur.Desktop;C<CheckBox>("ObsLaunchBox").IsChecked=cur.LaunchObs;} // при обновлении — как сейчас
    C<Button>("CloseButton").Click+=(s,e)=>w.Close();
    C<Button>("InstallButton").Click+=(s,e)=>Install();
    C<Button>("UninstallButton").Click+=(s,e)=>Uninstall();
@@ -231,7 +243,12 @@ namespace ReplaySetup {
     AttachConsole(-1); // вывод в консоль, из которой запущен тихий режим
     try {
      if(uninstall){Installer.Uninstall(paths);Console.WriteLine("removed");return 0;}
-     var o=new Options{WebSocket=!list.Contains("--no-websocket"),Autostart=!list.Contains("--no-autostart"),Desktop=list.Contains("--desktop"),Launch=!list.Contains("--no-launch"),LaunchObs=!list.Contains("--no-obs-launch")};
+     // Обновление без ключей сохраняет то, что выбрано сейчас; ключи явно включают или выключают.
+     var cur=Installer.CurrentState(paths);
+     var o=new Options{WebSocket=!list.Contains("--no-websocket"),Launch=!list.Contains("--no-launch"),
+      Autostart=list.Contains("--no-autostart")?false:list.Contains("--autostart")||!cur.Installed||cur.Autostart,
+      Desktop=list.Contains("--no-desktop")?false:list.Contains("--desktop")||(cur.Installed&&cur.Desktop),
+      LaunchObs=list.Contains("--no-obs-launch")?false:list.Contains("--obs-launch")||!cur.Installed||cur.LaunchObs};
      if(o.WebSocket&&Installer.IsObsRunning()&&!paths.Test){o.WebSocket=false;Console.WriteLine("OBS запущен — WebSocket не изменён");}
      foreach(string line in Installer.Install(paths,o))Console.WriteLine(line);
      return 0;

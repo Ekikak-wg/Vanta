@@ -48,6 +48,12 @@ try {
  Check ((Get-FileHash (Join-Path $install 'ReplayOverlay.exe')).Hash -eq $hash) 'update: same overlay binary'
  Check ((Ws).server_password -eq 'keep-this-pass') 'update: enabled WebSocket left untouched'
 
+ # 2b. Update without options keeps what the user chose before.
+ Check ((Run @()) -eq 0) 'plain update: exit code 0'
+ Check ((Get-Content $prefsFile -Raw | ConvertFrom-Json).launchObs -eq $false) 'plain update: launchObs stays off'
+ Check ($null -eq (Get-ItemProperty "$reg\Run" -ErrorAction SilentlyContinue).'Replay Overlay') 'plain update: autostart stays off'
+ Check (Test-Path (Join-Path $root 'Desktop\Replay Overlay.lnk')) 'plain update: desktop shortcut kept'
+
  # 3. No WebSocket config at all: it is created with a random password.
  Remove-Item $wsDir -Recurse -Force
  Check ((Run @()) -eq 0) 'fresh websocket: exit code 0'

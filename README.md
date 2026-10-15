@@ -13,11 +13,11 @@
   <img alt="Windows 10/11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0b1220?logo=windows&logoColor=white">
   <img alt="OBS Studio 30+" src="https://img.shields.io/badge/OBS%20Studio-30%2B-302e31?logo=obsstudio&logoColor=white">
   <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-76b900">
-  <img alt="Size" src="https://img.shields.io/badge/установщик-%E2%89%880.2%20МБ-1d2227">
+  <img alt="Size" src="https://img.shields.io/badge/установщик-%E2%89%880.6%20МБ-1d2227">
 </p>
 
 <p align="center">
-  <a href="https://github.com/erteterya/Replay-OBS/raw/main/dist/ReplayOBS-Setup.exe"><b>⬇ Скачать установщик</b></a>
+  <a href="https://github.com/erteterya/Replay-OBS/releases/latest/download/ReplayOBS-Setup.exe"><b>⬇ Скачать установщик</b></a>
 </p>
 
 ---
@@ -37,17 +37,19 @@
 - **Невидимо для зрителей** — меню, уведомления, подсказка клавиш и индикатор записи исключены из захвата экрана: их нет ни в записи OBS, ни в демонстрации Discord.
 - **Работает в фоне** — запускается вместе с Windows в трей и сам поднимает OBS свёрнутым в трей. Если OBS упал (а не был закрыт вами), меню запускает его снова и включает буфер повтора.
 - **Диагностика** — предупреждения о пропуске кадров, перегрузке видеокарты, зависании OBS и нехватке места; журнал без паролей; экспорт диагностики одним архивом.
-- **Лёгкое** — ~0,3 МБ, без Electron и браузера, без внедрения в игры. Работает от событий OBS и Windows; периодически — только статистика OBS раз в 10 с (пока OBS подключён), страховочная проверка окон исключённых приложений раз в 1,5 с и попытка подключиться к закрытому OBS раз в 3 с.
+- **Лёгкое** — ~0,5 МБ, без Electron и браузера, без внедрения в игры. Работает от событий OBS и Windows; периодически — только статистика OBS раз в 10 с (пока OBS подключён), страховочная проверка окон исключённых приложений раз в 1,5 с и попытка подключиться к закрытому OBS раз в 3 с.
 
 ## Установка
 
 1. Установите [OBS Studio](https://obsproject.com/download) 30 или новее.
-2. Скачайте и запустите [**ReplayOBS-Setup.exe**](https://github.com/erteterya/Replay-OBS/raw/main/dist/ReplayOBS-Setup.exe). Права администратора не нужны: программа ставится в `%LOCALAPPDATA%\Programs\Replay OBS`.
+2. Скачайте и запустите [**ReplayOBS-Setup.exe**](https://github.com/erteterya/Replay-OBS/releases/latest/download/ReplayOBS-Setup.exe). Права администратора не нужны: программа ставится в `%LOCALAPPDATA%\Programs\Replay OBS`.
 3. Установщик может включить WebSocket-сервер OBS (через него меню управляет OBS). Если сервер уже включён, настройки не меняются; если нет — создаётся случайный пароль. Для этого шага OBS нужно закрыть.
 4. В OBS включите буфер повтора: **Настройки → Вывод → Буфер повтора → Включить** и задайте длительность.
 5. Нажмите **Alt+Z**.
 
 > Windows SmartScreen может предупредить о неизвестном издателе — установщик не подписан сертификатом. Исходники и сборка открыты, см. «Сборка из исходников».
+
+**Обновление** — скачайте свежий установщик и запустите его поверх: меню закроется и заменится новой версией, настройки меню, журналы, автозапуск, ярлыки и WebSocket OBS остаются как были. Все версии — на странице [Releases](https://github.com/erteterya/Replay-OBS/releases).
 
 Установщик **не трогает** профили, сцены и настройки записи OBS. Удаление — через «Параметры → Приложения» (или повторный запуск установщика → «Удалить»); настройки OBS при этом остаются как есть.
 
@@ -192,7 +194,7 @@ Windows не умеет вычитать программу из общего з
 .\build.ps1 -Test -Desktop  # + тест видимости окон (ненадолго открывает «Таблицу символов») и страницы клипов (окно за экраном)
 ```
 
-Тихая установка: `ReplayOBS-Setup.exe --silent [--no-websocket] [--no-autostart] [--no-obs-launch] [--desktop] [--no-launch]`, удаление: `--uninstall --silent`.
+Тихая установка: `ReplayOBS-Setup.exe --silent [--no-websocket] [--no-autostart | --autostart] [--no-obs-launch | --obs-launch] [--desktop | --no-desktop] [--no-launch]` (при обновлении без ключей сохраняется текущий выбор), удаление: `--uninstall --silent`.
 
 План развития — в [ROADMAP.md](ROADMAP.md).
 
