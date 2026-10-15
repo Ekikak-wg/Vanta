@@ -49,7 +49,7 @@ namespace ReplayOverlay {
    if(prev!=null&&cur.OutputTotal>=prev.OutputTotal&&cur.OutputSkipped>=prev.OutputSkipped) {
     long total=cur.OutputTotal-prev.OutputTotal,skipped=cur.OutputSkipped-prev.OutputSkipped;
     if(skipped>=5&&skipped*100>=total)
-     list.Add(new KeyValuePair<string,string>("encoder","Кодировщик не успевает: пропущено "+skipped+" из "+(total+skipped)+" кадров. Снизьте битрейт, разрешение или FPS, или выберите «Экономичное»."));
+     list.Add(new KeyValuePair<string,string>("encoder","Кодировщик не успевает: пропущено "+skipped+" из "+(total+skipped)+" кадров. Снизьте битрейт, разрешение или FPS, или выберите качество «Рекомендуемое»."));
    }
    if(prev!=null&&cur.RenderTotal>=prev.RenderTotal&&cur.RenderSkipped>=prev.RenderSkipped) {
     long total=cur.RenderTotal-prev.RenderTotal,skipped=cur.RenderSkipped-prev.RenderSkipped;

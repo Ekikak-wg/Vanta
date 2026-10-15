@@ -37,7 +37,7 @@ static class GalleryUiTest {
    Run(ff,"-hide_banner -v error -y -f lavfi -i smptebars=size=640x360:rate=30:duration=5 -f lavfi -i sine=duration=5 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac \""+Path.Combine(dir,"2026-10-13_21-30-00.mp4")+"\"");
    File.SetLastWriteTime(Path.Combine(dir,"2026-10-13_21-30-00.mp4"),DateTime.Now.AddDays(-1));
    // Настройки меню для теста: без игр, без запуска OBS, известная папка. OBS недоступен: путь к настройкам WebSocket — несуществующий.
-   File.WriteAllText(prefs,Json.Encode(Json.D("autoGames",false,"launchObs",false,"indicator","off","lastDirectory",dir,"hotkeys",Json.D("menu","","save",""))));
+   File.WriteAllText(prefs,Json.Encode(Json.D("autoGames",false,"launchObs",false,"indicator","off","lastDirectory",dir,"galleryGrid",false,"hotkeys",Json.D("menu","","save",""))));
    ObsClient.ConfigPath=Path.Combine(dir,"нет-config.json");
    var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
    ov=new Overlay(true);var w=ov.Window;w.ShowInTaskbar=false;w.ShowActivated=false;w.Topmost=false;
@@ -55,6 +55,14 @@ static class GalleryUiTest {
    Check(Pump(()=>images.Values.All(i=>i.Source!=null),15000),"миниатюры загружены");
    Check(Pump(()=>clips.All(c=>c.Seconds>0),5000)&&Math.Abs(clips[0].Seconds-8)<0.3,"длительность в строке: "+string.Join(", ",clips.Select(c=>c.Seconds.ToString("0.0"))));
    Snap(Path.Combine(shots,"gallery-list.png"));
+   // Вид сеткой: две карточки в ряд, контекстное меню у каждой.
+   var gv=typeof(Overlay).GetField("gridView",BindingFlags.NonPublic|BindingFlags.Instance);gv.SetValue(ov,true);Call("RenderClips");Pump(()=>false,400);
+   var pair=list.Children[0] as Grid;
+   Check(list.Children.Count==1&&pair!=null&&pair.Children.Count==2,"сетка: два клипа в одном ряду");
+   var card=pair==null?null:pair.Children[0] as Border;
+   Check(card!=null&&card.ContextMenu!=null&&card.ContextMenu.Items.Count==6,"у видео в меню 6 действий (открыть, программа, папка, переименовать, обрезать, удалить)");
+   Snap(Path.Combine(shots,"gallery-grid.png"));
+   gv.SetValue(ov,false);Call("RenderClips");Pump(()=>false,200);
 
    Call("SelectClip",clips[0]);
    var msg=C<TextBlock>("PlayerMessage");

@@ -75,6 +75,8 @@
   <Style TargetType="TextBox"><Setter Property="Height" Value="34"/><Setter Property="Padding" Value="9,6"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="#F5F6F7"/><Setter Property="Background" Value="#1F2329"/><Setter Property="BorderBrush" Value="#343A43"/><Setter Property="CaretBrush" Value="#F5F6F7"/><Setter Property="Margin" Value="0,6,0,0"/></Style>
   <Style TargetType="CheckBox"><Setter Property="Foreground" Value="#E6E8EB"/><Setter Property="FontSize" Value="13"/><Setter Property="Margin" Value="0,0,0,10"/><Setter Property="Cursor" Value="Hand"/><Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate></Setter.Value></Setter></Style>
   <Style x:Key="TrackToggle" TargetType="ToggleButton"><Setter Property="Width" Value="28"/><Setter Property="Height" Value="26"/><Setter Property="Margin" Value="0,0,4,0"/><Setter Property="Foreground" Value="#C4CCD4"/><Setter Property="FontSize" Value="12"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton"><Border x:Name="B" Background="#1F2329" CornerRadius="6" BorderBrush="#343A43" BorderThickness="1"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="B" Property="Background" Value="#1F00D46A"/><Setter TargetName="B" Property="BorderBrush" Value="#00D46A"/><Setter Property="Foreground" Value="#F5F6F7"/></Trigger><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Opacity" Value="0.85"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+  <Style TargetType="ContextMenu"><Setter Property="Foreground" Value="#E6E8EB"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ContextMenu"><Border Background="#1A1D23" BorderBrush="#343A43" BorderThickness="1" CornerRadius="8" Padding="4"><StackPanel IsItemsHost="True"/></Border></ControlTemplate></Setter.Value></Setter></Style>
+  <Style TargetType="MenuItem"><Setter Property="Foreground" Value="#E6E8EB"/><Setter Property="FontSize" Value="13"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem"><Border x:Name="B" Background="Transparent" CornerRadius="6" Padding="12,7"><ContentPresenter ContentSource="Header"/></Border><ControlTemplate.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="B" Property="Background" Value="#252A32"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
   <Style x:Key="Label" TargetType="TextBlock"><Setter Property="Foreground" Value="#9CA3AF"/><Setter Property="FontSize" Value="12"/></Style>
   <Style x:Key="Title" TargetType="TextBlock"><Setter Property="FontSize" Value="20"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,2,0,12"/></Style>
   <Style x:Key="Section" TargetType="TextBlock"><Setter Property="FontSize" Value="14"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,8,0,8"/></Style>
@@ -272,9 +274,13 @@
     </StackPanel>
 
     <StackPanel x:Name="ClipsPage" Visibility="Collapsed">
-     <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+     <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <TextBlock Text="Галерея" Style="{StaticResource Title}"/>
-      <Button x:Name="ClipsFolderButton" Grid.Column="1" Content="Открыть папку" Padding="12,7" FontSize="12" VerticalAlignment="Top"/>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,0,8,0">
+       <RadioButton x:Name="ViewGrid" Style="{StaticResource Chip}" GroupName="View" Width="36" ToolTip="Сеткой"><TextBlock Text="&#xF0E2;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"/></RadioButton>
+       <RadioButton x:Name="ViewList" Style="{StaticResource Chip}" GroupName="View" Width="36" Margin="4,0,0,0" ToolTip="Списком"><TextBlock Text="&#xE8FD;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"/></RadioButton>
+      </StackPanel>
+      <Button x:Name="ClipsFolderButton" Grid.Column="2" Content="Открыть папку" Padding="12,7" FontSize="12" VerticalAlignment="Top"/>
      </Grid>
      <UniformGrid Columns="4" Margin="0,0,0,10">
       <RadioButton x:Name="FilterAll" Style="{StaticResource Chip}" GroupName="Filter" Content="Все" Margin="0,0,5,0" IsChecked="True"/>
@@ -288,13 +294,15 @@
       <Border Background="#000000" Height="230" CornerRadius="10" ClipToBounds="True">
        <Grid><MediaElement x:Name="Player" LoadedBehavior="Manual" UnloadedBehavior="Close" ScrubbingEnabled="True" Stretch="Uniform"/>
         <Image x:Name="ShotView" Stretch="Uniform" Visibility="Collapsed"/>
-        <TextBlock x:Name="PlayerMessage" Text="" Foreground="#C4CCD4" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16"/></Grid>
+        <TextBlock x:Name="PlayerMessage" Text="" Foreground="#C4CCD4" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16"/>
+        <Button x:Name="FullscreenButton" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Width="32" Height="32" Padding="0" Background="#99000000" ToolTip="Во весь экран (двойной щелчок по клипу)"><TextBlock Text="&#xE740;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13" Foreground="#F5F6F7"/></Button></Grid>
       </Border>
       <StackPanel x:Name="VideoControls">
-       <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="80"/></Grid.ColumnDefinitions>
         <Button x:Name="PlayButton" Content="▶" Width="42" Padding="0,7" FontSize="13" ToolTip="Воспроизвести / пауза"/>
         <TextBlock x:Name="PlayTime" Grid.Column="1" Text="" FontSize="12" Foreground="#C4CCD4" VerticalAlignment="Center" Margin="10,0"/>
         <Button x:Name="SoundButton" Grid.Column="2" Content="Звук выкл" Padding="10,7" FontSize="11"/>
+        <Slider x:Name="VolumeSlider" Grid.Column="3" Minimum="0" Maximum="1" Value="0.8" VerticalAlignment="Center" Margin="8,0,0,0" ToolTip="Громкость предпросмотра"/>
        </Grid>
        <Slider x:Name="PlaySlider" Minimum="0" Maximum="1" Margin="0,8,0,0" IsMoveToPointEnabled="True"/>
        <Canvas x:Name="TrimBar" Height="6" Margin="5,2,5,0" Background="#262B33" ToolTip="Сохраняемый отрезок"><Rectangle x:Name="TrimRange" Height="6" Fill="#00D46A"/></Canvas>

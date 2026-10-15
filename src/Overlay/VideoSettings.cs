@@ -172,7 +172,8 @@ namespace ReplayOverlay {
      result=target;Log.Write("Повтор перенесён в папку повторов");}
     catch(Exception ex){Log.Write("Повтор не перенесён: "+ex.Message);Warn("replay-move","Повтор не перенесён в папку повторов: "+ex.Message);}}
    Track(result);return result;}
-  void Track(string path){if(string.IsNullOrEmpty(path))return;managed.Add(path.Replace('/','\\'));SavePrefs();}
+  // На учёт: путь и игра, которая шла в момент сохранения (для карточки галереи).
+  void Track(string path){if(string.IsNullOrEmpty(path))return;path=path.Replace('/','\\');managed.Add(path);var g=gamesWatch.Current;if(g!=null)clipGames[path]=Path.GetFileNameWithoutExtension(g.FileName);SavePrefs();}
   void RunCleanup(bool manual){
    int pruned=managed.Prune();
    if(!cleanupOn&&!manual){if(pruned>0)SavePrefs();return;}
