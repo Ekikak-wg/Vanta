@@ -140,6 +140,20 @@ namespace ReplayOverlay {
    }
   }
 
+  // Кодеки звуковых дорожек файла по порядку (через ffprobe). Пусто — не удалось прочитать.
+  public static List<string> AudioCodecs(string ffprobe,string file){
+   var list=new List<string>();if(ffprobe==null)return list;
+   try{var psi=new ProcessStartInfo(ffprobe,"-v error -select_streams a -show_entries stream=codec_name -of csv=p=0 "+Q(file)){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true};
+    using(var p=Process.Start(psi)){string o=p.StandardOutput.ReadToEnd();p.WaitForExit(10000);foreach(var l in o.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries))list.Add(l.Trim().TrimEnd(','));}}
+   catch(Exception){}
+   return list;}
+  // Каждая звуковая дорожка — в свой файл (для редакторов, которые берут из видео только первую дорожку, например CapCut).
+  // copy — без перекодирования (AAC в M4A); иначе — в AAC 192 кбит/с.
+  public static string SplitAudioArgs(string input,IList<string> outputs,bool copy){
+   var a=new StringBuilder("-hide_banner -nostdin -y -i "+Q(input));
+   for(int i=0;i<outputs.Count;i++)a.Append(" -map 0:a:"+i+" -vn "+(copy?"-c:a copy":"-c:a aac -b:a 192k")+" "+Q(outputs[i]));
+   return a.ToString();}
+
   // Длительность через ffprobe (если Windows её не знает).
   public static double Duration(string ffprobe,string file) {
    if(ffprobe==null)return -1;

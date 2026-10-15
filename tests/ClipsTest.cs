@@ -102,6 +102,13 @@ static class ClipsTest {
     Check(Path.GetFileName(outExact)=="Replay synth (обрезка 2).mp4","второй отрезок получил номер 2");
     Check(se.Count==4&&se[0].StartsWith("h264")&&se.Count(s=>s.StartsWith("aac"))==3,"точная обрезка: видео H.264 и 3 дорожки AAC");
     Check(Math.Abs(de-4.0)<0.12,"точная обрезка 5–9 с: длительность "+de.ToString("0.000")+" с");
+    // Дорожки отдельно (для CapCut): три звуковые дорожки — три файла M4A без перекодирования
+    var codecs=Ffmpeg.AudioCodecs(probe,clip);
+    Check(codecs.Count==3&&codecs.All(x=>x=="aac"),"ffprobe видит 3 звуковые дорожки AAC: "+string.Join(",",codecs));
+    var outs=new List<string>{Path.Combine(dir,"Дорожка 1 Общий.m4a"),Path.Combine(dir,"Дорожка 2 Игра.m4a"),Path.Combine(dir,"Дорожка 3 Микрофон.m4a")};
+    Ffmpeg.Run(ff,Ffmpeg.SplitAudioArgs(clip,outs,true),0,null,CancellationToken.None).Wait();
+    Check(outs.All(File.Exists)&&outs.All(o=>Streams(probe,o).Count==1&&Streams(probe,o)[0].StartsWith("aac")),"каждая дорожка — отдельный файл с одной дорожкой AAC");
+    Check(outs.All(o=>Math.Abs(Dur(probe,o)-12)<0.3),"длительность каждой дорожки — как у ролика (12 с)");
     if(Environment.GetEnvironmentVariable("REPLAY_TEST_NVENC")=="1"){string outN=ClipLibrary.TrimmedPath(clip,false);Ffmpeg.Run(ff,Ffmpeg.TrimArgs(clip,outN+".part",5,9,true,"h264_nvenc"),4,null,CancellationToken.None).Wait();File.Move(outN+".part",outN);Check(Math.Abs(Dur(probe,outN)-4)<0.12,"точная обрезка через NVENC");}
     // Ошибка ffmpeg — понятное исключение
     err=null;try{Ffmpeg.Run(ff,Ffmpeg.TrimArgs(Path.Combine(dir,"нет.mkv"),Path.Combine(dir,"x.mp4.part"),0,1,false,null),1,null,CancellationToken.None).Wait();}catch(AggregateException ex){err=ex.InnerException.Message;}

@@ -60,7 +60,7 @@ static class GalleryUiTest {
    var pair=list.Children[0] as Grid;
    Check(list.Children.Count==1&&pair!=null&&pair.Children.Count==2,"сетка: два клипа в одном ряду");
    var card=pair==null?null:pair.Children[0] as Border;
-   Check(card!=null&&card.ContextMenu!=null&&card.ContextMenu.Items.Count==6,"у видео в меню 6 действий (открыть, программа, папка, переименовать, обрезать, удалить)");
+   Check(card!=null&&card.ContextMenu!=null&&card.ContextMenu.Items.Count==7,"у видео в меню 7 действий (открыть, программа, папка, переименовать, обрезать, дорожки отдельно, удалить)");
    Snap(Path.Combine(shots,"gallery-grid.png"));
    gv.SetValue(ov,false);Call("RenderClips");Pump(()=>false,200);
 

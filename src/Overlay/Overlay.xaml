@@ -380,7 +380,10 @@
         <UniformGrid Columns="2"><RadioButton x:Name="TrimMp4" Style="{StaticResource Chip}" GroupName="TrimFormat" Content="MP4" Margin="0,0,6,0"/><RadioButton x:Name="TrimKeep" Style="{StaticResource Chip}" GroupName="TrimFormat" Content="Как исходник"/></UniformGrid>
         <TextBlock x:Name="TrimFormatHint" Text="" Style="{StaticResource Hint}" Margin="0,6,0,10"/>
        </StackPanel>
-       <Button x:Name="TrimButton" Content="Сохранить отрезок" HorizontalAlignment="Left" Background="#1F00D46A" Foreground="#7DF0B0" ToolTip="Сохраняется новым файлом рядом, исходный остаётся"/>
+       <WrapPanel>
+        <Button x:Name="TrimButton" Content="Сохранить отрезок" Margin="0,0,8,0" Background="#1F00D46A" Foreground="#7DF0B0" ToolTip="Сохраняется новым файлом рядом, исходный остаётся"/>
+        <Button x:Name="SplitTracksClip" Content="Дорожки отдельно" ToolTip="Каждая звуковая дорожка — отдельным файлом M4A. Для CapCut и других редакторов, которые берут из видео только первую дорожку"/>
+       </WrapPanel>
        <TextBlock x:Name="TrimProgress" Text="" FontSize="12" Foreground="#00D46A" Margin="0,6,0,0"/>
        <StackPanel x:Name="FfmpegPanel" Visibility="Collapsed" Margin="0,6,0,0">
         <TextBlock Text="Для обрезки нужен ffmpeg. Установите его командой «winget install Gyan.FFmpeg» и откройте клип снова — или укажите ffmpeg.exe вручную." Style="{StaticResource Hint}" Foreground="#F2C46D"/>

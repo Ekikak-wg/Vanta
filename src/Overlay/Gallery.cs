@@ -61,6 +61,7 @@ namespace ReplayOverlay {
    C<RadioButton>("TrimMp4").Click+=(s,e)=>{toMp4=true;SavePrefs();UpdateTrimOptions();};C<RadioButton>("TrimKeep").Click+=(s,e)=>{toMp4=false;SavePrefs();UpdateTrimOptions();};
    UpdateTrimOptions();
    C<Button>("TrimButton").Click+=(s,e)=>Run(TrimClip);
+   C<Button>("SplitTracksClip").Click+=(s,e)=>{if(selectedClip!=null)Run(()=>SplitClipTracks(selectedClip));};
    C<Button>("RenameButton").Click+=(s,e)=>Run(RenameClip);
    C<TextBox>("RenameBox").KeyDown+=(s,e)=>{if(e.Key==Key.Enter){e.Handled=true;Run(RenameClip);}};
    C<Button>("OpenClipButton").Click+=(s,e)=>Run(async()=>{var c=SelectedOrThrow();Process.Start(new ProcessStartInfo(c.Path){UseShellExecute=true});await Task.FromResult(0);});
@@ -144,6 +145,7 @@ namespace ReplayOverlay {
    item("Показать в папке",()=>Run(async()=>{EnsureClipExists(c);Process.Start(new ProcessStartInfo("explorer.exe","/select,\""+c.Path+"\""){UseShellExecute=true});await Task.FromResult(0);}));
    item("Переименовать",()=>{SelectClip(c);window.Dispatcher.BeginInvoke(new Action(()=>{var rb=C<TextBox>("RenameBox");rb.Focus();rb.SelectAll();}),DispatcherPriority.Loaded);});
    if(!c.IsImage)item("Обрезать",()=>{SelectClip(c);window.Dispatcher.BeginInvoke(new Action(()=>C<Slider>("PlaySlider").BringIntoView()),DispatcherPriority.Loaded);});
+   if(!c.IsImage)item("Дорожки отдельно (для CapCut)",()=>Run(()=>SplitClipTracks(c)));
    item("Удалить в Корзину",()=>{SelectClip(c);Run(DeleteClip);});
    row.ContextMenu=menu;}
   // Просмотр во весь экран; пока он открыт, меню не прячется.
@@ -211,6 +213,24 @@ namespace ReplayOverlay {
   void UpdateTrimOptions(){
    C<TextBlock>("TrimModeHint").Text=precise?"Отрезок начнётся ровно с выбранного места. Видео пересчитывается заново — это займёт от нескольких секунд до минут.":"За долю секунды и без потери качества. Начало может сдвинуться назад до 2 секунд — видео режется только по опорным кадрам.";
    C<TextBlock>("TrimFormatHint").Text=toMp4?"MP4 открывается прямо в Discord и на телефоне. Качество то же.":"Как у исходного файла (обычно MKV). Discord покажет его только как файл для скачивания.";}
+
+  string[] trackNamesNow=new string[6];
+  // Каждая звуковая дорожка — в свой файл M4A в папке «<клип> — дорожки» рядом. Номер и название дорожки — из OBS.
+  async Task SplitClipTracks(ClipFile c){
+   EnsureClipExists(c);string ff=FindFfmpeg();if(ff==null)throw new InvalidOperationException("Нужен ffmpeg: winget install Gyan.FFmpeg");
+   var codecs=await Task.Run(()=>Ffmpeg.AudioCodecs(Ffmpeg.Probe(ff),c.Path));
+   if(codecs.Count==0)throw new InvalidOperationException("Звуковых дорожек не найдено (или нет ffprobe рядом с ffmpeg)");
+   if(codecs.Count==1){Message("В файле одна звуковая дорожка — разделять нечего");return;}
+   // Дорожка файла i — это i-я из записываемых дорожек OBS, если их столько же; иначе (повтор с «всеми дорожками») — дорожка i+1.
+   var recorded=Enumerable.Range(0,6).Where(t=>(recTracksNow&(1<<t))!=0).ToList();
+   string dir=Path.Combine(Path.GetDirectoryName(c.Path),c.Name+" — дорожки");Directory.CreateDirectory(dir);var outs=new List<string>();
+   for(int i=0;i<codecs.Count;i++){int t=recorded.Count==codecs.Count?recorded[i]:i;string nm=trackNamesNow!=null&&t<trackNamesNow.Length&&!string.IsNullOrEmpty(trackNamesNow[t])?" "+trackNamesNow[t]:"";
+    string label="Дорожка "+(t+1)+nm;foreach(char ch in Path.GetInvalidFileNameChars())label=label.Replace(ch,'_');outs.Add(Path.Combine(dir,label+".m4a"));}
+   bool copy=codecs.All(x=>x=="aac");Message("Сохраняю дорожки…");
+   await Ffmpeg.Run(ff,Ffmpeg.SplitAudioArgs(c.Path,outs,copy),0,null,System.Threading.CancellationToken.None);
+   Log.Write("Дорожки отдельно: "+c.Name+c.Extension+" → "+outs.Count+" файлов"+(copy?"":" (перекодировано в AAC)"));
+   Message("Дорожки сохранены в «"+Path.GetFileName(dir)+"»");Notify("Дорожки сохранены",outs.Count+" файлов · «"+Path.GetFileName(dir)+"»",ToastKind.Ok);
+   Process.Start(new ProcessStartInfo("explorer.exe","/select,\""+outs[0]+"\""){UseShellExecute=true});}
 
   // Обрезка — в новый файл рядом, исходный не трогаем. Повторное нажатие — отмена.
   async Task TrimClip(){

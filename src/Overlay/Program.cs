@@ -466,7 +466,7 @@ namespace ReplayOverlay {
   // Микшер: громкость, вкл/выкл, дорожки 1–6 и задержка звука для каждого источника со звуком.
   async Task RenderMixer(){
    if(!obs.Connected||audio==null)return;object raw;(await obs.Call("GetInputList")).TryGetValue("inputs",out raw);
-   var names=new string[6];for(int i=0;i<6;i++){try{names[i]=Json.Str(await obs.Call("GetProfileParameter",Json.D("parameterCategory","AdvOut","parameterName","Track"+(i+1)+"Name")),"parameterValue");}catch(InvalidOperationException){names[i]="";}}
+   var names=new string[6];for(int i=0;i<6;i++){try{names[i]=Json.Str(await obs.Call("GetProfileParameter",Json.D("parameterCategory","AdvOut","parameterName","Track"+(i+1)+"Name")),"parameterValue");}catch(InvalidOperationException){names[i]="";}}trackNamesNow=names;
    int rec=0;try{int.TryParse(Json.Str(await obs.Call("GetProfileParameter",Json.D("parameterCategory","AdvOut","parameterName","RecTracks")),"parameterValue"),out rec);}catch(InvalidOperationException){}
    var parts=new List<string>();for(int i=0;i<6;i++)if((rec&(1<<i))!=0)parts.Add((i+1)+(names[i].Length>0?" "+names[i]:""));
    recTracksNow=rec;chosenLayout=AudioSetup.LayoutOf(rec);foreach(var l in new[]{new[]{"LayoutCommon","common"},new[]{"LayoutSplit","split"},new[]{"LayoutCustom","custom"}})C<RadioButton>(l[0]).IsChecked=l[1]==chosenLayout;
