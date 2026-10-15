@@ -312,8 +312,14 @@
         <Button x:Name="TrimResetButton" Grid.Column="4" Content="Весь" Padding="10,7" FontSize="12" ToolTip="Сбросить отрезок"/>
        </Grid>
        <TextBlock x:Name="TrimInfo" Text="" Style="{StaticResource Hint}" Foreground="#A5ADB7" Margin="0,8,0,8"/>
-       <CheckBox x:Name="PreciseBox" Content="Точно по кадру (перекодирование — дольше)" ToolTip="Без галочки файл копируется без потери качества, а начало сдвигается к ключевому кадру"/>
-       <CheckBox x:Name="Mp4Box" Content="Сохранить в MP4 — для Discord и телефона"/>
+       <TextBlock Text="Как вырезать" Style="{StaticResource Label}" Margin="0,4,0,6"/>
+       <UniformGrid Columns="2"><RadioButton x:Name="TrimFast" Style="{StaticResource Chip}" GroupName="TrimMode" Content="Быстро" Margin="0,0,6,0"/><RadioButton x:Name="TrimExact" Style="{StaticResource Chip}" GroupName="TrimMode" Content="Точно по кадру"/></UniformGrid>
+       <TextBlock x:Name="TrimModeHint" Text="" Style="{StaticResource Hint}" Margin="0,6,0,0"/>
+       <StackPanel x:Name="TrimFormatPanel">
+        <TextBlock Text="Формат отрезка" Style="{StaticResource Label}" Margin="0,10,0,6"/>
+        <UniformGrid Columns="2"><RadioButton x:Name="TrimMp4" Style="{StaticResource Chip}" GroupName="TrimFormat" Content="MP4" Margin="0,0,6,0"/><RadioButton x:Name="TrimKeep" Style="{StaticResource Chip}" GroupName="TrimFormat" Content="Как исходник"/></UniformGrid>
+        <TextBlock x:Name="TrimFormatHint" Text="" Style="{StaticResource Hint}" Margin="0,6,0,10"/>
+       </StackPanel>
        <Button x:Name="TrimButton" Content="Сохранить отрезок" HorizontalAlignment="Left" Background="#1F00D46A" Foreground="#7DF0B0" ToolTip="Сохраняется новым файлом рядом, исходный остаётся"/>
        <TextBlock x:Name="TrimProgress" Text="" FontSize="12" Foreground="#00D46A" Margin="0,6,0,0"/>
        <StackPanel x:Name="FfmpegPanel" Visibility="Collapsed" Margin="0,6,0,0">

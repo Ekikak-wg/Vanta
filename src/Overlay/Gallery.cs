@@ -54,8 +54,12 @@ namespace ReplayOverlay {
    C<Button>("TrimEndButton").Click+=(s,e)=>SetTrim(false);
    C<Button>("TrimResetButton").Click+=(s,e)=>{trimStart=0;trimEnd=clipLength;RenderTrim();};
    C<Canvas>("TrimBar").SizeChanged+=(s,e)=>RenderTrim();
-   var pb=C<CheckBox>("PreciseBox");pb.IsChecked=precise;pb.Click+=(s,e)=>{precise=pb.IsChecked==true;SavePrefs();RenderTrim();};
-   var mb=C<CheckBox>("Mp4Box");mb.IsChecked=toMp4;mb.Click+=(s,e)=>{toMp4=mb.IsChecked==true;SavePrefs();};
+   // Два понятных выбора вместо галочек: как вырезать и в каком формате сохранить.
+   C<RadioButton>("TrimFast").IsChecked=!precise;C<RadioButton>("TrimExact").IsChecked=precise;
+   C<RadioButton>("TrimFast").Click+=(s,e)=>{precise=false;SavePrefs();UpdateTrimOptions();RenderTrim();};C<RadioButton>("TrimExact").Click+=(s,e)=>{precise=true;SavePrefs();UpdateTrimOptions();RenderTrim();};
+   C<RadioButton>("TrimMp4").IsChecked=toMp4;C<RadioButton>("TrimKeep").IsChecked=!toMp4;
+   C<RadioButton>("TrimMp4").Click+=(s,e)=>{toMp4=true;SavePrefs();UpdateTrimOptions();};C<RadioButton>("TrimKeep").Click+=(s,e)=>{toMp4=false;SavePrefs();UpdateTrimOptions();};
+   UpdateTrimOptions();
    C<Button>("TrimButton").Click+=(s,e)=>Run(TrimClip);
    C<Button>("RenameButton").Click+=(s,e)=>Run(RenameClip);
    C<TextBox>("RenameBox").KeyDown+=(s,e)=>{if(e.Key==Key.Enter){e.Handled=true;Run(RenameClip);}};
@@ -164,7 +168,7 @@ namespace ReplayOverlay {
   void SelectClip(ClipFile c){
    ClosePlayer();selectedClip=c;HighlightSelected();clipLength=0;trimStart=0;trimEnd=0;
    C<StackPanel>("ClipDetail").Visibility=Visibility.Visible;C<TextBlock>("ClipTitle").Text=c.Name+c.Extension;
-   C<TextBox>("RenameBox").Text=c.Name;C<CheckBox>("Mp4Box").Visibility=c.Extension.ToLowerInvariant()==".mp4"?Visibility.Collapsed:Visibility.Visible;
+   C<TextBox>("RenameBox").Text=c.Name;C<StackPanel>("TrimFormatPanel").Visibility=c.Extension.ToLowerInvariant()==".mp4"?Visibility.Collapsed:Visibility.Visible;UpdateTrimOptions();
    C<TextBlock>("TrimProgress").Text="";bool busyFile=ClipLibrary.InUse(c.Path);
    C<StackPanel>("VideoControls").Visibility=c.IsImage?Visibility.Collapsed:Visibility.Visible;var view=C<Image>("ShotView");view.Visibility=c.IsImage?Visibility.Visible:Visibility.Collapsed;view.Source=null;
    if(c.IsImage){C<TextBlock>("PlayerMessage").Text="";try{var bi=new BitmapImage();bi.BeginInit();bi.CacheOption=BitmapCacheOption.OnLoad;bi.DecodePixelWidth=1280;bi.UriSource=new Uri(c.Path);bi.EndInit();bi.Freeze();view.Source=bi;}catch(Exception ex){C<TextBlock>("PlayerMessage").Text="Изображение не открыть: "+ex.Message;}C<TextBox>("RenameBox").Text=c.Name;C<StackPanel>("ClipDetail").Visibility=Visibility.Visible;C<TextBlock>("ClipTitle").Text=c.Name+c.Extension;foreach(string n in new[]{"RenameButton","DeleteClipButton"})C<Button>(n).IsEnabled=true;C<ScrollViewer>("PageScroll").ScrollToTop();return;}
@@ -198,8 +202,12 @@ namespace ReplayOverlay {
    var bar=C<Canvas>("TrimBar");var r=C<System.Windows.Shapes.Rectangle>("TrimRange");double w=bar.ActualWidth;
    if(clipLength<=0||w<=0){r.Width=0;}else{Canvas.SetLeft(r,trimStart/clipLength*w);r.Width=Math.Max(2,(trimEnd-trimStart)/clipLength*w);}
    bool whole=clipLength>0&&trimStart<=0.05&&trimEnd>=clipLength-0.05;
-   C<TextBlock>("TrimInfo").Text=clipLength<=0?"Длительность неизвестна — обрезка недоступна.":(whole?"Весь клип":"Отрезок "+ClipLibrary.Time(trimStart,true)+" – "+ClipLibrary.Time(trimEnd,true))+" · "+ClipLibrary.Time(trimEnd-trimStart,true)+(precise?"":" · начало — по ближайшему ключевому кадру (до 2 с раньше)");
+   C<TextBlock>("TrimInfo").Text=clipLength<=0?"Длительность неизвестна — обрезка недоступна.":(whole?"Весь клип":"Отрезок "+ClipLibrary.Time(trimStart,true)+" – "+ClipLibrary.Time(trimEnd,true))+" · "+ClipLibrary.Time(trimEnd-trimStart,true);
    if(!trimBusy)C<Button>("TrimButton").Content=whole&&selectedClip!=null&&selectedClip.Extension.ToLowerInvariant()!=".mp4"?"Сохранить копию":"Сохранить отрезок";}
+
+  void UpdateTrimOptions(){
+   C<TextBlock>("TrimModeHint").Text=precise?"Отрезок начнётся ровно с выбранного места. Видео пересчитывается заново — это займёт от нескольких секунд до минут.":"За долю секунды и без потери качества. Начало может сдвинуться назад до 2 секунд — видео режется только по опорным кадрам.";
+   C<TextBlock>("TrimFormatHint").Text=toMp4?"MP4 открывается прямо в Discord и на телефоне. Качество то же.":"Как у исходного файла (обычно MKV). Discord покажет его только как файл для скачивания.";}
 
   // Обрезка — в новый файл рядом, исходный не трогаем. Повторное нажатие — отмена.
   async Task TrimClip(){
