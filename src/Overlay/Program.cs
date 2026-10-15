@@ -375,6 +375,7 @@ namespace ReplayOverlay {
    mode.SelectionChanged+=(s,e)=>{var it=mode.SelectedItem as ComboBoxItem;if(it==null)return;string m=Convert.ToString(it.Tag);if(m!=audioMode)Run(()=>SetAudioMode(m));};
    foreach(var l in new[]{new[]{"LayoutCommon","common"},new[]{"LayoutSplit","split"},new[]{"LayoutCustom","custom"}}){string tag=l[1];C<RadioButton>(l[0]).Click+=(s,e)=>{chosenLayout=tag;UpdateLayoutUi();};}
    C<Button>("LayoutApply").Click+=(s,e)=>Run(ApplyTrackLayout);
+   C<Button>("DuplicateFix").Click+=(s,e)=>Run(FixDuplicatesNow);
    C<ComboBox>("AudioAppBox").DropDownOpened+=(s,e)=>FillAudioApps();
    C<Button>("AddAudioAppButton").Click+=(s,e)=>{var l=audioMode=="except"?audioExcept:audioOnly;OpenPicker(audioMode=="except"?"Не записывать звук приложения":"Записывать звук приложения",audioMode=="except"?"Звук этой программы не попадёт в запись.":"В запись попадёт звук только выбранных программ (и игры, Discord, микрофона).",l,n=>{if(!l.Contains(n))l.Add(n);SavePrefs();RenderAudioApps();Run(ReapplyAudio);});};
    C<Button>("AddDeviceButton").Click+=(s,e)=>Run(AddDevice);
@@ -412,6 +413,15 @@ namespace ReplayOverlay {
   void UpdateLayoutUi(){
    C<StackPanel>("RecTracksPanel").Visibility=chosenLayout=="custom"?Visibility.Visible:Visibility.Collapsed;
    C<TextBlock>("LayoutHint").Text=chosenLayout=="common"?"Одна дорожка: игра, Discord, микрофон и программы смешаны. Файл открывается и звучит одинаково везде.":chosenLayout=="split"?"1 — всё вместе, 2 — игра, 3 — микрофон, 4 — Discord, 5 — рабочий стол и программы. В монтаже каждую можно отдельно приглушить. Плееры и Discord играют только дорожку 1.":"Вы сами выбираете записываемые дорожки ниже и раскладываете источники стрелкой «›». Меню проверит, нет ли двойного звука.";}
+  // Двойной звук на записываемых дорожках: предупреждение и кнопка «Убрать двойной звук».
+  async Task RefreshDuplicates(){
+   var dw=C<TextBlock>("DuplicateWarn");var fix=C<Button>("DuplicateFix");
+   try{var dups=AudioSetup.Duplicates(await audio.Sources(),recTracksNow);dw.Visibility=fix.Visibility=dups.Count>0?Visibility.Visible:Visibility.Collapsed;dw.Text=string.Join("\n",dups.Select(x=>"⚠ "+x));}
+   catch(Exception ex){Log.Write("Проверка двойного звука: "+ex.Message);}}
+  async Task FixDuplicatesNow(){EnsureReady();
+   var plan=AudioSetup.FixDuplicates(await audio.Sources(),recTracksNow);
+   foreach(var kv in plan){await audio.SetMask(kv.Key,kv.Value);Log.Write("Звук: «"+kv.Key+"» снят с дорожек, где уже есть звук рабочего стола");}
+   Message(plan.Count==0?"Двойного звука нет":"Двойной звук убран: "+string.Join(", ",plan.Keys)+" — этот звук и так есть в звуке рабочего стола");await RenderMixer();}
   // Применить раскладку дорожек: маски источников и список записываемых дорожек. Если список меняется — буфер повтора перезапускается.
   async Task ApplyTrackLayout(){EnsureReady();string layout=chosenLayout;int custom=CustomRecTracks();
    if(layout=="custom"&&custom==0)throw new InvalidOperationException("Выберите хотя бы одну дорожку для записи");
@@ -456,7 +466,7 @@ namespace ReplayOverlay {
    var parts=new List<string>();for(int i=0;i<6;i++)if((rec&(1<<i))!=0)parts.Add((i+1)+(names[i].Length>0?" "+names[i]:""));
    recTracksNow=rec;chosenLayout=AudioSetup.LayoutOf(rec);foreach(var l in new[]{new[]{"LayoutCommon","common"},new[]{"LayoutSplit","split"},new[]{"LayoutCustom","custom"}})C<RadioButton>(l[0]).IsChecked=l[1]==chosenLayout;
    for(int i=0;i<6;i++)C<System.Windows.Controls.Primitives.ToggleButton>("RecT"+(i+1)).IsChecked=(rec&(1<<i))!=0;UpdateLayoutUi();
-   try{var dups=AudioSetup.Duplicates(await audio.Sources(),rec);var dw=C<TextBlock>("DuplicateWarn");dw.Visibility=dups.Count>0?Visibility.Visible:Visibility.Collapsed;dw.Text=string.Join("\n",dups.Select(x=>"⚠ "+x));}catch(Exception ex){Log.Write("Проверка дублей звука: "+ex.Message);}
+   await RefreshDuplicates();
    C<TextBlock>("TracksInfo").Text=outputMode!="Advanced"?"Дорожки записи настраиваются в расширенном режиме вывода OBS.":parts.Count>0?"Записываются дорожки: "+string.Join(", ",parts)+".":"Дорожки записи не выбраны.";
    var rows=new List<UIElement>();var buttons=new Dictionary<string,System.Windows.Controls.Primitives.ToggleButton>();
    foreach(object o in (raw as object[])??new object[0]){string name=Json.Str(Json.Obj(o),"inputName"),kind=Json.Str(Json.Obj(o),"inputKind");
@@ -486,7 +496,7 @@ namespace ReplayOverlay {
    details.Children.Add(new TextBlock{Text="Дорожки в файле и задержка звука",FontSize=11,Foreground=Brush("#7F8793"),Margin=new Thickness(0,6,0,4)});
    var tp=new StackPanel{Orientation=Orientation.Horizontal};
    for(int i=0;i<6;i++){int bit=1<<i;var t=new System.Windows.Controls.Primitives.ToggleButton{Content=(i+1).ToString(),IsChecked=(mask&bit)!=0,Style=(Style)window.FindResource("TrackToggle"),ToolTip="Дорожка "+(i+1)+(trackNames[i].Length>0?" — "+trackNames[i]:"")};
-    t.Click+=(s,e)=>Run(async()=>{int m=await audio.GetMask(name);await audio.SetMask(name,t.IsChecked==true?m|bit:m&~bit);});tp.Children.Add(t);}
+    t.Click+=(s,e)=>Run(async()=>{int m=await audio.GetMask(name);await audio.SetMask(name,t.IsChecked==true?m|bit:m&~bit);await RefreshDuplicates();});tp.Children.Add(t);}
    var off=new TextBox{Text=offset.ToString(),Width=58,Height=26,Padding=new Thickness(4,2,4,2),FontSize=12,Margin=new Thickness(8,0,4,0),ToolTip="Задержка звука в мс (от −950 до 20000)"};
    Action commit=()=>{int v;if(!int.TryParse(off.Text,out v)||v<-950||v>20000){Message("Задержка — целое число от −950 до 20000 мс");return;}Run(async()=>{await obs.Call("SetInputAudioSyncOffset",Json.D("inputName",name,"inputAudioSyncOffset",v));});};
    off.LostFocus+=(s,e)=>commit();off.KeyDown+=(s,e)=>{if(e.Key==Key.Enter){commit();e.Handled=true;}};tp.Children.Add(off);

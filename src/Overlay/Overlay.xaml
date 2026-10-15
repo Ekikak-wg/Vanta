@@ -219,6 +219,7 @@
         <TextBlock Text="Какой источник на какой дорожке — стрелка «›» у источника выше." Style="{StaticResource Hint}" Margin="0,6,0,0"/>
        </StackPanel>
        <TextBlock x:Name="DuplicateWarn" Text="" Style="{StaticResource Hint}" Foreground="#F2C46D" Margin="0,8,0,0" Visibility="Collapsed"/>
+       <Button x:Name="DuplicateFix" Content="Убрать двойной звук" HorizontalAlignment="Left" Padding="12,7" FontSize="12" Margin="0,6,0,0" Visibility="Collapsed" ToolTip="Снять отдельные источники с дорожек, где их звук уже есть через «Звук рабочего стола»"/>
        <Button x:Name="LayoutApply" Content="Применить раскладку" HorizontalAlignment="Left" Padding="12,7" FontSize="12" Margin="0,10,0,0"/>
       </StackPanel>
      </Border>

@@ -200,10 +200,16 @@ namespace ReplayOverlay {
   // Роли источников: desktop (звук рабочего стола), mic, game (захват игры), discord, app (звук программы от меню), output (ещё устройство вывода), other.
   // desktopRecorded — пишется ли звук рабочего стола (режим «весь звук компьютера»). Если нет, игра и Discord идут в общую дорожку своими источниками.
   public static int Desired(string layout,bool desktopRecorded,string role){
-   bool inFull=role=="mic"||role=="app"||role=="output"||(role=="desktop"&&desktopRecorded)||((role=="game"||role=="discord")&&!desktopRecorded);
+   // Отдельный источник программы (например «Музыка») при записи всего звука компьютера не нужен: его звук уже есть в рабочем столе.
+   bool inFull=role=="mic"||role=="output"||(role=="desktop"&&desktopRecorded)||((role=="game"||role=="discord"||role=="app")&&!desktopRecorded);
    int m=inFull?Full:0;
-   if(layout=="split"){if(role=="game")m|=Game;else if(role=="mic")m|=Mic;else if(role=="discord")m|=Discord;else if((role=="desktop"&&desktopRecorded)||role=="app"||role=="output")m|=Desktop;}
+   if(layout=="split"){if(role=="game")m|=Game;else if(role=="mic")m|=Mic;else if(role=="discord")m|=Discord;else if((role=="desktop"&&desktopRecorded)||(role=="app"&&!desktopRecorded)||role=="output")m|=Desktop;}
    return m;}
+  // «Убрать двойной звук»: снять дублирующие источники с записываемых дорожек, где уже есть звук рабочего стола. Имя → новая маска.
+  public static Dictionary<string,int> FixDuplicates(IEnumerable<AudioSource> sources,int recTracks){
+   var list=sources.ToList();var res=new Dictionary<string,int>();int desktop=list.Where(s=>s.Role=="desktop").Aggregate(0,(a,s)=>a|s.Mask)&recTracks;
+   foreach(var s in list.Where(x=>x.Role=="discord"||x.Role=="app"||(x.Role=="game"&&x.GameAudio)))if((s.Mask&desktop)!=0)res[s.Name]=s.Mask&~desktop;
+   return res;}
   public static int RecTracksFor(string layout,int current,int custom){return layout=="common"?Full:layout=="split"?(31|(current&32)):Math.Max(1,custom&63);}
   public static string LayoutOf(int recTracks){return recTracks==1?"common":(recTracks&31)==31?"split":"custom";}
   public sealed class AudioSource{public string Name,Role;public int Mask;public bool GameAudio;}

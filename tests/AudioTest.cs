@@ -116,6 +116,13 @@ static class AudioTest {
   var srcSilentGame = new[] { new AudioSetup.AudioSource { Name = "Рабочий стол", Role = "desktop", Mask = 1 }, new AudioSetup.AudioSource { Name = "Игра", Role = "game", Mask = 1, GameAudio = false } };
   Check(AudioSetup.Duplicates(srcSilentGame, 1).Count == 0, "захват игры без звука — не дубль");
   Check(AudioSetup.Duplicates(srcDup, 2).Count == 0, "дорожка 1 не записывается — дубля в файле нет");
+  Check(D("split", true, "app") == 0 && D("common", true, "app") == 0, "источник программы (например «Музыка») при записи всего звука не ставится на дорожки рабочего стола");
+  var music = new[] { new AudioSetup.AudioSource { Name = "Рабочий стол", Role = "desktop", Mask = 17 }, new AudioSetup.AudioSource { Name = "Музыка", Role = "app", Mask = 17 }, new AudioSetup.AudioSource { Name = "Игра", Role = "game", Mask = 2, GameAudio = true } };
+  Check(AudioSetup.Duplicates(music, 31).Count == 2, "«Музыка» на дорожках 1 и 5 вместе с рабочим столом — два дубля");
+  var fix = AudioSetup.FixDuplicates(music, 31);
+  Check(fix.Count == 1 && fix["Музыка"] == 0, "«Убрать двойной звук»: «Музыка» снимается с дорожек 1 и 5, игра не трогается");
+  var music6 = new[] { music[0], new AudioSetup.AudioSource { Name = "Музыка", Role = "app", Mask = 17 | 32 } };
+  Check(AudioSetup.FixDuplicates(music6, 63)["Музыка"] == 32, "отдельная дорожка 6 у «Музыки» сохраняется");
   Console.WriteLine(failures == 0 ? "ИТОГ: все проверки пройдены" : "ИТОГ: провалов " + failures);
   return failures == 0 ? 0 : 1;
  }
