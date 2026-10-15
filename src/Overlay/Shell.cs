@@ -27,7 +27,7 @@ namespace ReplayOverlay {
    C<Button>("GearButton").Click+=(s,e)=>ShowPage("settings");
    foreach(var nav in new[]{new[]{"NavAudio","AudioSection"},new[]{"NavCapture","CaptureSection"},new[]{"NavPrivacy","PrivacySection"},new[]{"NavHotkeys","HotkeySection"},new[]{"NavSystem","SystemSection"}}){string target=nav[1];C<Button>(nav[0]).Click+=(s,e)=>ScrollToSection(target);}
    // Переключатель повтора: состояние берётся только из OBS (событие ReplayBufferStateChanged), а не из нажатия.
-   var rs=C<ToggleButton>("ReplaySwitch");rs.Click+=(s,e)=>{rs.IsChecked=replay;Run(async()=>{EnsureReady();await obs.Call("ToggleReplayBuffer");await Refresh();});};
+   var rs=C<ToggleButton>("ReplaySwitch");rs.Click+=(s,e)=>{rs.IsChecked=ReplayOn;Run(ToggleReplay);};
    C<Button>("RecordKeyEdit").Click+=(s,e)=>{ShowPage("settings");StartCapture("record");ScrollToSection("HotkeySection");};
    C<Button>("ReplayOpenRecord").Click+=(s,e)=>ShowPage("record");
    foreach(int sec in DurationChips){int v=sec;C<RadioButton>("D"+sec).Click+=(s,e)=>C<Slider>("DurationSlider").Value=v;}
@@ -63,6 +63,7 @@ namespace ReplayOverlay {
    bool resume=replayAvailable&&Json.Bool(await obs.Call("GetReplayBufferStatus"),"outputActive");busy=true;UpdateControls();
    try{if(resume){await obs.Call("StopReplayBuffer");await WaitBuffer(false);}
     await obs.Call("SetProfileParameter",Json.D("parameterCategory",OutputSection,"parameterName","RecRBTime","parameterValue",seconds.ToString()));
+    if(srOn){duration=seconds;await ApplySR(false);} // отдельный повтор берёт длительность из фильтра
     if(resume){await obs.Call("StartReplayBuffer");await WaitBuffer(true);}}
    finally{busy=false;UpdateControls();}
    duration=seconds;Log.Write("Длительность повтора: "+FormatDuration(seconds));Message("Длительность повтора: "+FormatDuration(seconds)+(resume?" · буфер запущен заново":""));await Refresh();}

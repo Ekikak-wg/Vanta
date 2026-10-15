@@ -29,7 +29,7 @@ try {
  $common = "$ov\ObsConfig.cs", "$ov\ObsClient.cs"
  $vb = "/reference:$fw\Microsoft.VisualBasic.dll"
  Compile "$bin\ReplayOverlay.exe" winexe (@("/win32manifest:$ov\app.manifest", '/win32icon:assets\icon.ico', "/resource:$ov\Overlay.xaml,Overlay.xaml", $vb) + $sys + $wpf) `
-  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Diagnostics.cs", "$ov\Games.cs", "$ov\Audio.cs", "$ov\Clips.cs", "$ov\Indicator.cs", "$ov\Chrome.cs", "$ov\Encoders.cs", "$ov\Storage.cs", "$ov\Viewer.cs", "$ov\Picker.cs", "$ov\Gallery.cs", "$ov\Shell.cs", "$ov\VideoSettings.cs", "$ov\SystemSettings.cs", "$ov\Program.cs"))
+  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Diagnostics.cs", "$ov\Games.cs", "$ov\Audio.cs", "$ov\Clips.cs", "$ov\Indicator.cs", "$ov\Chrome.cs", "$ov\Encoders.cs", "$ov\Storage.cs", "$ov\Viewer.cs", "$ov\Picker.cs", "$ov\Gallery.cs", "$ov\Shell.cs", "$ov\VideoSettings.cs", "$ov\SystemSettings.cs", "$ov\ReplaySR.cs", "$ov\Program.cs"))
  Compile "$bin\ReplayOBS-Setup.exe" winexe (@('/win32manifest:src\Setup\setup.manifest', '/win32icon:assets\icon.ico', '/resource:src\Setup\Setup.xaml,Setup.xaml', '/resource:assets\icon.png,icon.png', "/resource:$bin\ReplayOverlay.exe,payload.ReplayOverlay.exe") + $sys + $wpf) `
   (@('src\Setup\AssemblyInfo.cs', 'src\Setup\Setup.cs') + $common)
 

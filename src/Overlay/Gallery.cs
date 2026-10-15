@@ -277,6 +277,6 @@ namespace ReplayOverlay {
    corner.SelectionChanged+=(s,e)=>{var it=corner.SelectedItem as ComboBoxItem;if(it==null)return;indicatorCorner=Convert.ToString(it.Tag);indicator.Corner=indicatorCorner;SavePrefs();UpdateIndicator();};
    indicatorTimer.Tick+=(s,e)=>UpdateIndicator();indicatorTimer.Start();}
   bool indicatorFailed;
-  void UpdateIndicator(){if(indicator==null||exiting)return;try{indicator.Update(obs.Connected&&correctProfile,record,DateTime.Now-recordStart,replay);}catch(Exception ex){if(!indicatorFailed){indicatorFailed=true;Log.Write("Индикатор: "+ex.Message);}}}
+  void UpdateIndicator(){if(indicator==null||exiting)return;try{indicator.Update(obs.Connected&&correctProfile,record,DateTime.Now-recordStart,ReplayOn);}catch(Exception ex){if(!indicatorFailed){indicatorFailed=true;Log.Write("Индикатор: "+ex.Message);}}}
  }
 }

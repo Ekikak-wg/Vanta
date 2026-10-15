@@ -45,7 +45,7 @@ namespace ReplayOverlay {
       var hello=await Receive(connectTimeout.Token).ConfigureAwait(false);
       if(Json.Int(hello,"op")!=0)throw new InvalidOperationException("Неподдерживаемый ответ OBS");
       var data=Json.Obj(hello["d"]);
-      var identify=Json.D("rpcVersion",1,"eventSubscriptions",207); // General|Config|Scenes|Inputs|Outputs|SceneItems
+      var identify=Json.D("rpcVersion",1,"eventSubscriptions",719); // General|Config|Scenes|Inputs|Outputs|SceneItems|Vendors
       if(data.ContainsKey("authentication")) {
        var auth=Json.Obj(data["authentication"]);
        identify["authentication"]=Authentication(Json.Str(config,"server_password"),Json.Str(auth,"salt"),Json.Str(auth,"challenge"));
