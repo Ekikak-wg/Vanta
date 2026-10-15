@@ -50,9 +50,14 @@ namespace ReplayOverlay {
    C<Button>("SoundButton").Click+=(s,e)=>{previewSound=!previewSound;player.IsMuted=!previewSound;UpdateSoundButton();SavePrefs();};
    var slider=C<Slider>("PlaySlider");slider.ValueChanged+=(s,e)=>{if(!syncing&&clipLength>0)player.Position=TimeSpan.FromSeconds(e.NewValue);UpdatePlayTime();};
    playTimer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(100)};playTimer.Tick+=(s,e)=>SyncSlider();
-   C<Button>("TrimStartButton").Click+=(s,e)=>SetTrim(true);
-   C<Button>("TrimEndButton").Click+=(s,e)=>SetTrim(false);
-   C<Button>("TrimResetButton").Click+=(s,e)=>{trimStart=0;trimEnd=clipLength;RenderTrim();};
+   // Ручки под шкалой: перетаскивание меняет начало или конец отрезка, видео показывает кадр в этом месте.
+   foreach(bool isStart in new[]{true,false}){bool st=isStart;var th=C<System.Windows.Controls.Primitives.Thumb>(st?"TrimStartThumb":"TrimEndThumb");
+    th.DragDelta+=(s,e)=>{double w=C<Canvas>("TrimHandles").ActualWidth;if(clipLength<=0||w<=0)return;
+     double t=Math.Max(0,Math.Min(clipLength,(st?trimStart:trimEnd)+e.HorizontalChange/w*clipLength));
+     if(st)trimStart=Math.Max(0,Math.Min(t,trimEnd-0.5));else trimEnd=Math.Min(clipLength,Math.Max(t,trimStart+0.5));
+     if(Player.Source!=null){PausePlayer();double at=st?trimStart:trimEnd;Player.Position=TimeSpan.FromSeconds(at);syncing=true;C<Slider>("PlaySlider").Value=Math.Min(C<Slider>("PlaySlider").Maximum,at);syncing=false;UpdatePlayTime();}
+     RenderTrim();};}
+   C<Canvas>("TrimHandles").SizeChanged+=(s,e)=>RenderTrim();
    C<Canvas>("TrimBar").SizeChanged+=(s,e)=>RenderTrim();
    // Два понятных выбора вместо галочек: как вырезать и в каком формате сохранить.
    C<RadioButton>("TrimFast").IsChecked=!precise;C<RadioButton>("TrimExact").IsChecked=precise;
@@ -207,7 +212,10 @@ namespace ReplayOverlay {
    // Отрезок рисуется прямо на шкале: зелёный участок и метки начала и конца. Пока выбран весь клип — шкала серая.
    if(clipLength<=0||w<=0||whole){r.Width=0;sm.Visibility=em.Visibility=Visibility.Hidden;}
    else{double x0=trimStart/clipLength*w,x1=trimEnd/clipLength*w;Canvas.SetLeft(r,x0);r.Width=Math.Max(2,x1-x0);Canvas.SetLeft(sm,x0-1.5);Canvas.SetLeft(em,x1-1.5);sm.Visibility=em.Visibility=Visibility.Visible;}
-   C<TextBlock>("TrimInfo").Text=clipLength<=0?"Длительность неизвестна — обрезка недоступна.":whole?"Сохранится весь клип ("+ClipLibrary.Time(clipLength,true)+"). Чтобы вырезать часть — поставьте бегунок и нажмите «Начало здесь» и «Конец здесь».":"Отрезок "+ClipLibrary.Time(trimStart,true)+" – "+ClipLibrary.Time(trimEnd,true)+" · "+ClipLibrary.Time(trimEnd-trimStart,true)+" — отмечен зелёным на шкале";
+   // Ручки под шкалой — всегда на границах отрезка (весь клип — по краям).
+   var hs=C<System.Windows.Controls.Primitives.Thumb>("TrimStartThumb");var he=C<System.Windows.Controls.Primitives.Thumb>("TrimEndThumb");double hw=C<Canvas>("TrimHandles").ActualWidth;
+   if(clipLength<=0||hw<=0){hs.Visibility=he.Visibility=Visibility.Hidden;}else{hs.Visibility=he.Visibility=Visibility.Visible;Canvas.SetLeft(hs,trimStart/clipLength*hw-7);Canvas.SetLeft(he,trimEnd/clipLength*hw-7);}
+   C<TextBlock>("TrimInfo").Text=clipLength<=0?"Длительность неизвестна — обрезка недоступна.":whole?"Сохранится весь клип ("+ClipLibrary.Time(clipLength,true)+"). Чтобы вырезать часть — перетащите зелёные ручки под шкалой.":"Отрезок "+ClipLibrary.Time(trimStart,true)+" – "+ClipLibrary.Time(trimEnd,true)+" · "+ClipLibrary.Time(trimEnd-trimStart,true)+" — отмечен зелёным на шкале";
    if(!trimBusy)C<Button>("TrimButton").Content=whole&&selectedClip!=null&&selectedClip.Extension.ToLowerInvariant()!=".mp4"?"Сохранить копию":"Сохранить отрезок";}
 
   void UpdateTrimOptions(){

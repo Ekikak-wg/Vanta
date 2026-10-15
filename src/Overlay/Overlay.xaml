@@ -366,11 +366,11 @@
         </Canvas>
         <Slider x:Name="PlaySlider" Style="{StaticResource Timeline}" Minimum="0" Maximum="1" ToolTip="Перемотка. Зелёным — отрезок, который сохранится"/>
        </Grid>
-       <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <Button x:Name="TrimStartButton" Content="Начало здесь" Padding="8,7" FontSize="12" ToolTip="Отрезок начнётся с текущего места"/>
-        <Button x:Name="TrimEndButton" Grid.Column="2" Content="Конец здесь" Padding="8,7" FontSize="12" ToolTip="Отрезок закончится на текущем месте"/>
-        <Button x:Name="TrimResetButton" Grid.Column="4" Content="Весь" Padding="10,7" FontSize="12" ToolTip="Сбросить отрезок"/>
-       </Grid>
+       <!-- Ручки начала и конца отрезка под шкалой: перетаскиваются мышью -->
+       <Canvas x:Name="TrimHandles" Height="16" Margin="7,0,7,0">
+        <Thumb x:Name="TrimStartThumb" Width="14" Height="14" Cursor="SizeWE" ToolTip="Начало отрезка — перетащите"><Thumb.Template><ControlTemplate TargetType="Thumb"><Path Data="M7,0 L14,7 L14,14 L0,14 L0,7 Z" Fill="#00D46A"/></ControlTemplate></Thumb.Template></Thumb>
+        <Thumb x:Name="TrimEndThumb" Width="14" Height="14" Cursor="SizeWE" ToolTip="Конец отрезка — перетащите"><Thumb.Template><ControlTemplate TargetType="Thumb"><Path Data="M7,0 L14,7 L14,14 L0,14 L0,7 Z" Fill="#00D46A"/></ControlTemplate></Thumb.Template></Thumb>
+       </Canvas>
        <TextBlock x:Name="TrimInfo" Text="" Style="{StaticResource Hint}" Foreground="#A5ADB7" Margin="0,8,0,8"/>
        <TextBlock Text="Как вырезать" Style="{StaticResource Label}" Margin="0,4,0,6"/>
        <UniformGrid Columns="2"><RadioButton x:Name="TrimFast" Style="{StaticResource Chip}" GroupName="TrimMode" Content="Быстро" Margin="0,0,6,0"/><RadioButton x:Name="TrimExact" Style="{StaticResource Chip}" GroupName="TrimMode" Content="Точно по кадру"/></UniformGrid>
