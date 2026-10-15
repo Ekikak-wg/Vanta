@@ -62,6 +62,9 @@ try {
    Copy-Item "$bin\ReplayOverlay.exe" "$bin\tests\" -Force
    Compile "$bin\tests\GalleryUiTest.exe" exe (@("/reference:$bin\ReplayOverlay.exe", $vb) + $sys + $wpf) @('tests\GalleryUiTest.cs')
    & "$bin\tests\GalleryUiTest.exe"; if ($LASTEXITCODE) { throw 'GalleryUiTest failed' }
+   # Acrylic backdrop + capture exclusion: a small window near the bottom-left corner for ~1.5 s.
+   Compile "$bin\tests\BackdropTest.exe" exe (@("/reference:$bin\ReplayOverlay.exe") + $sys + $wpf) @('tests\BackdropTest.cs')
+   & "$bin\tests\BackdropTest.exe"; if ($LASTEXITCODE) { throw 'BackdropTest failed' }
   }
  }
 } finally { Pop-Location }

@@ -44,6 +44,10 @@ namespace ReplayOverlay {
    for(int i=0;i<Pages.Length;i++){C<StackPanel>(PageNames[i]).Visibility=Pages[i]==page?Visibility.Visible:Visibility.Collapsed;var tab=C<RadioButton>(TabNames[i]);if(Pages[i]==page&&tab.IsChecked!=true)tab.IsChecked=true;}
    if(page!="clips")ClosePlayer();
    if(page==before&&before!=null)return;
+   // Короткое появление новой вкладки: прозрачность и сдвиг на 8 px за 150 мс. Команды не ждут анимацию.
+   {var sv=C<ScrollViewer>("PageScroll");var tt=sv.RenderTransform as System.Windows.Media.TranslateTransform;if(tt==null){tt=new System.Windows.Media.TranslateTransform();sv.RenderTransform=tt;}
+    sv.BeginAnimation(UIElement.OpacityProperty,new System.Windows.Media.Animation.DoubleAnimation(0.25,1,TimeSpan.FromMilliseconds(150)));
+    tt.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty,new System.Windows.Media.Animation.DoubleAnimation(8,0,TimeSpan.FromMilliseconds(150)){EasingFunction=new System.Windows.Media.Animation.CubicEase{EasingMode=System.Windows.Media.Animation.EasingMode.EaseOut}});}
    C<ScrollViewer>("PageScroll").ScrollToTop();
    if(page=="record")Run(RenderMixer);
    if(page=="settings"){UpdateStorageUi();RenderExcluded();FillApps();RenderHotkeys();RenderGames();RenderAudioApps();FillAudioApps();Run(FillDevices);}

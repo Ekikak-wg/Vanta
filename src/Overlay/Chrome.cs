@@ -99,6 +99,24 @@ namespace ReplayOverlay {
   public void Dispose(){if(w!=null){w.Close();w=null;}}
  }
 
+ // Размытие игры под панелью: акриловый фон DWM (Windows 11 22H2 и новее). На старых Windows — прежнее полупрозрачное окно.
+ public static class Backdrop {
+  [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr h,int attr,ref int value,int size);
+  [DllImport("dwmapi.dll")] static extern int DwmExtendFrameIntoClientArea(IntPtr h,ref Margins m);
+  struct Margins{public int Left,Right,Top,Bottom;}
+  public static bool Supported{get{try{int n;return int.TryParse(Convert.ToString(Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion","CurrentBuildNumber","0")),out n)&&n>=22621;}catch(Exception){return false;}}}
+  // До создания окна: без слоёной прозрачности (с ней DWM не рисует фон) и со «стеклом» на всю площадь.
+  public static void Prepare(Window w){
+   w.AllowsTransparency=false;w.Background=Brushes.Transparent;
+   System.Windows.Shell.WindowChrome.SetWindowChrome(w,new System.Windows.Shell.WindowChrome{GlassFrameThickness=new Thickness(-1),CaptionHeight=0,ResizeBorderThickness=new Thickness(0),CornerRadius=new CornerRadius(0),UseAeroCaptionButtons=false});}
+  // После создания окна: прозрачная подложка WPF, тёмная тема, скруглённые углы, акрил. false — Windows отказалась.
+  public static bool Apply(IntPtr h){
+   var src=HwndSource.FromHwnd(h);if(src!=null&&src.CompositionTarget!=null)src.CompositionTarget.BackgroundColor=Colors.Transparent;
+   var m=new Margins{Left=-1,Right=-1,Top=-1,Bottom=-1};DwmExtendFrameIntoClientArea(h,ref m);
+   int dark=1;DwmSetWindowAttribute(h,20,ref dark,4);int round=2;DwmSetWindowAttribute(h,33,ref round,4);
+   int acrylic=3;return DwmSetWindowAttribute(h,38,ref acrylic,4)==0;}
+ }
+
  // Заполненность диска: шкала показывает занятое место, текст — свободное.
  public sealed class DiskInfo {
   public string Name;public long Total,Free;public bool Available;

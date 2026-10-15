@@ -118,7 +118,7 @@
     <Button x:Name="CloseButton" Grid.Column="4" Width="34" Height="34" Padding="0" Background="Transparent" ToolTip="Скрыть меню (Escape)"><TextBlock Text="&#xE8BB;" Style="{StaticResource Glyph}" FontSize="13"/></Button>
    </Grid>
 
-   <Border Grid.Row="1" Grid.RowSpan="2" Background="{StaticResource Side}" CornerRadius="0,12,0,16" Padding="0,10,0,10">
+   <Border x:Name="Sidebar" Grid.Row="1" Grid.RowSpan="2" Background="{StaticResource Side}" CornerRadius="0,12,0,16" Padding="0,10,0,10">
     <StackPanel>
      <RadioButton x:Name="TabRecord" Style="{StaticResource Tab}" Tag="&#xE7C8;" Content="Запись" IsChecked="True"/>
      <RadioButton x:Name="TabReplay" Style="{StaticResource Tab}" Tag="&#xE81C;" Height="78"><TextBlock Text="Мгновенный повтор" TextWrapping="Wrap" Width="90" TextAlignment="Center"/></RadioButton>

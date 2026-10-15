@@ -66,6 +66,8 @@ namespace ReplayOverlay {
   public Overlay(bool previewMode) {
    preview=previewMode;
    using(var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("Overlay.xaml"))window=(Window)XamlReader.Load(stream);
+   acrylic=!previewMode&&Backdrop.Supported;
+   if(acrylic){Backdrop.Prepare(window);var shell=(Border)window.FindName("Shell");shell.CornerRadius=new CornerRadius(0);shell.Background=Brush("#B80D0F13");((Border)window.FindName("Sidebar")).Background=Brush("#80101216");}
    if(preview)window.ShowInTaskbar=true;
    LoadPrefs();privacy.SetExcluded(excluded);
    window.SourceInitialized+=(s,e)=>InitWindow();
@@ -104,7 +106,9 @@ namespace ReplayOverlay {
   void Message(string text){C<TextBlock>("MessageLabel").Text=text;C<TextBlock>("MessageLabel").ToolTip=text;}
   void EnsureReady(){if(!obs.Connected)throw new InvalidOperationException("Запустите OBS и дождитесь подключения");if(!correctProfile)throw new InvalidOperationException("Подождите: меню получает настройки OBS");}
   async void Run(Func<Task> action){try{await action();}catch(Exception ex){Log.Write("Ошибка: "+ex.Message);Message(ex.Message);if(!window.IsVisible)Notify("Действие не выполнено",ex.Message,ToastKind.Error);}}
-  void InitWindow(){handle=new WindowInteropHelper(window).Handle;HwndSource.FromHwnd(handle).AddHook(Hook);if(!preview)Native.SetWindowDisplayAffinity(handle,0x11);ConfigureHotkeys();obs.Start();gamesWatch.Enabled=autoGames;Log.Write("Меню запущено, версия "+Assembly.GetExecutingAssembly().GetName().Version.ToString(3)+(StartedFrom=="--from=run"?" (автозапуск: реестр)":StartedFrom=="--from=startup"?" (автозапуск: папка «Автозагрузка»)":""));if(launchObs&&!preview)LaunchObsHidden("при запуске меню");}
+  bool acrylic; // размытие фона под панелью (Windows 11 22H2+)
+  void InitWindow(){handle=new WindowInteropHelper(window).Handle;HwndSource.FromHwnd(handle).AddHook(Hook);if(!preview&&!Native.SetWindowDisplayAffinity(handle,0x11))Log.Write("Окно меню не удалось исключить из захвата");
+   if(acrylic&&!Backdrop.Apply(handle)){Log.Write("Размытие фона недоступно — обычная подложка");C<Border>("Shell").Background=Brush("#F00D0F13");}ConfigureHotkeys();obs.Start();gamesWatch.Enabled=autoGames;Log.Write("Меню запущено, версия "+Assembly.GetExecutingAssembly().GetName().Version.ToString(3)+(StartedFrom=="--from=run"?" (автозапуск: реестр)":StartedFrom=="--from=startup"?" (автозапуск: папка «Автозагрузка»)":""));if(launchObs&&!preview)LaunchObsHidden("при запуске меню");}
   void UnregisterHotkeys(){for(int i=0;i<Actions.Length;i++)Native.UnregisterHotKey(handle,100+i);}
   void ConfigureHotkeys(){if(handle==IntPtr.Zero)return;UnregisterHotkeys();keyBusy.Clear();
    for(int i=0;i<Actions.Length;i++){Hotkey k;if(keys.TryGetValue(Actions[i][0],out k)&&k!=null)keyBusy[Actions[i][0]]=!Native.RegisterHotKey(handle,100+i,k.Win32Modifiers,k.VirtualKey);}
@@ -144,7 +148,7 @@ namespace ReplayOverlay {
   void SetHotkey(string action,Hotkey k){capturing=null;string moved=null;if(k!=null)foreach(var a in Actions)if(a[0]!=action&&k.Same(HotkeyFor(a[0]))){keys[a[0]]=null;moved=a[1];}
    keys[action]=k;SavePrefs();ConfigureHotkeys();RenderHotkeys();bool busyKey;keyBusy.TryGetValue(action,out busyKey);
    Message(k==null?"Сочетание убрано":busyKey?k+" занято другой программой — выберите другое":k+" назначено"+(moved!=null?" (снято с действия «"+moved+"»)":""));}
-  void Position(){var screen=WF.Screen.FromHandle(Native.GetForegroundWindow());var transform=PresentationSource.FromVisual(window);double dx=1,dy=1;if(transform!=null){dx=transform.CompositionTarget.TransformFromDevice.M11;dy=transform.CompositionTarget.TransformFromDevice.M22;}var area=screen.Bounds;window.WindowState=WindowState.Normal;window.Width=Math.Min(560,area.Width*dx);window.Height=area.Height*dy;window.Left=area.Left*dx;window.Top=area.Top*dy;}
+  void Position(){var screen=WF.Screen.FromHandle(Native.GetForegroundWindow());var transform=PresentationSource.FromVisual(window);double dx=1,dy=1;if(transform!=null){dx=transform.CompositionTarget.TransformFromDevice.M11;dy=transform.CompositionTarget.TransformFromDevice.M22;}var area=screen.Bounds;window.WindowState=WindowState.Normal;window.Width=Math.Min(area.Width*dx,Math.Min(560,Math.Max(480,area.Width*dx*0.45))); /* не шире 45% экрана, чтобы не закрывать игру */window.Height=area.Height*dy;window.Left=area.Left*dx;window.Top=area.Top*dy;}
   public void Show(){Ui(()=>{if(window.IsVisible&&window.IsActive)return;var fg=Native.GetForegroundWindow();if(fg!=handle&&!window.IsVisible)previousForeground=fg;Position();window.Show();window.Activate();Native.SetForegroundWindow(handle);Run(Refresh);});}
   // Фокус отдаём игре, пока меню ещё на переднем плане: скрытое окно уже не имеет права его передать,
   // Windows остаётся без активного окна, и игра (Warframe) не прячет курсор даже после щелчка.
