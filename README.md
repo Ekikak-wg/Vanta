@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="https://github.com/erteterya/Replay-OBS/releases/latest/download/ReplayOBS-Setup.exe"><img alt="Скачать для Windows" src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20%D0%B4%D0%BB%D1%8F%20Windows-00D46A?style=for-the-badge&logo=windows&logoColor=06140C"></a>
-  <br><sub>Пока только для ПК на Windows 10 / 11 · бесплатно, открытый код</sub>
+  <br><sub>Для ПК на Windows 10 / 11 · бесплатно, открытый код</sub>
 </p>
 
 <p align="center">
@@ -70,7 +70,6 @@
 ## Подробнее
 
 📖 [Руководство](docs/GUIDE.md) — сцены, звук, приватность, галерея, сборка из исходников<br>
-🗺️ [План развития](ROADMAP.md)<br>
 📦 [Все версии](https://github.com/erteterya/Replay-OBS/releases)
 
 <sub>[MIT](LICENSE) · OBS Studio — отдельный проект (GPL-2.0), Replay OBS общается с ним только через obs-websocket.</sub>

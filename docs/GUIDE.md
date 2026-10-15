@@ -176,8 +176,6 @@ Windows не умеет вычитать программу из общего з
 
 Тихая установка: `ReplayOBS-Setup.exe --silent [--no-websocket] [--no-autostart | --autostart] [--no-obs-launch | --obs-launch] [--desktop | --no-desktop] [--no-launch]` (при обновлении без ключей сохраняется текущий выбор), удаление: `--uninstall --silent`.
 
-План развития — в [ROADMAP.md](../ROADMAP.md).
-
 ## Устройство
 
 ```
