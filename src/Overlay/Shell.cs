@@ -110,7 +110,7 @@ namespace ReplayOverlay {
    UpdateShotUi();}
   void UpdateShotUi(){bool jpeg=shotFormat=="jpeg";C<TextBlock>("ShotPngHint").Visibility=jpeg?Visibility.Collapsed:Visibility.Visible;C<StackPanel>("ShotJpegPanel").Visibility=jpeg?Visibility.Visible:Visibility.Collapsed;C<TextBlock>("ShotQualityLabel").Text=shotQuality.ToString();
    C<TextBlock>("ShotFolderLabel").Text=ShotDir.Length>0?ShotDir:"—";C<TextBlock>("ShotFolderLabel").ToolTip=ShotDir;
-   C<TextBlock>("ShotSourceHint").Text=shotSource=="game"?"Снимок окна игры через захват игры OBS — без меню, уведомлений и других окон.":shotSource=="scene"?"Снимок того, что сейчас записывается: текущая сцена OBS целиком.":"Снимок всего монитора через захват экрана OBS. Окна из исключений в него попадут, если они видны.";
+   C<TextBlock>("ShotSourceHint").Text=shotSource=="game"?"Снимок окна игры через захват игры OBS — без меню, уведомлений и других окон.":shotSource=="scene"?"Снимок того, что сейчас записывается: текущая сцена OBS целиком.":shotSource=="window"?"Снимок окна, в котором вы были до открытия меню, — без OBS. Игры в эксклюзивном полноэкранном режиме так могут получиться чёрными — для них выберите «Текущая игра».":"Снимок всего монитора через захват экрана OBS. Окна из исключений в него попадут, если они видны.";
    Hotkey k=HotkeyFor("shot");C<TextBlock>("ShotKeyHint").Text=k!=null?k.ToString():"Сочетание не задано";}
   void PickShotFolder(){string chosen;dialogOpen=true;
    try{using(var d=new WF.FolderBrowserDialog{Description="Куда сохранять скриншоты",ShowNewFolderButton=true,SelectedPath=ShotDir}){if(d.ShowDialog(new Owner(handle))!=WF.DialogResult.OK)return;chosen=d.SelectedPath;}}
@@ -128,13 +128,16 @@ namespace ReplayOverlay {
    if(first==null)throw new InvalidOperationException(shotSource=="screen"?"В OBS нет захвата экрана":"В OBS нет захвата игры");
    return first;}
   async Task TakeScreenshot(){
-   EnsureReady();string dir=ShotDir;if(dir.Length==0)throw new InvalidOperationException("Папка скриншотов неизвестна");Directory.CreateDirectory(dir);
-   string source=await ShotSourceName();bool jpeg=shotFormat=="jpeg";var g=gamesWatch.Current;
-   string name=(g!=null?g.Exe:"Screenshot")+"_"+DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");foreach(char c in Path.GetInvalidFileNameChars())name=name.Replace(c,'_');
+   string dir=ShotDir;if(dir.Length==0)throw new InvalidOperationException("Папка скриншотов неизвестна");Directory.CreateDirectory(dir);
+   bool jpeg=shotFormat=="jpeg",own=shotSource=="window";var g=gamesWatch.Current;
+   // Активное окно: то, где был пользователь до открытия меню (или текущее, если меню закрыто).
+   IntPtr target=IntPtr.Zero;if(own){target=window.IsVisible?previousForeground:Native.GetForegroundWindow();if(target==handle)target=IntPtr.Zero;}
+   string source=own?"окно "+WindowShot.ExeOf(target):null;if(!own){EnsureReady();source=await ShotSourceName();}
+   string name=(own?WindowShot.ExeOf(target):g!=null?g.Exe:"Screenshot")+"_"+DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");foreach(char c in Path.GetInvalidFileNameChars())name=name.Replace(c,'_');
    string file=Path.Combine(dir,name+(jpeg?".jpg":".png"));for(int i=2;File.Exists(file);i++)file=Path.Combine(dir,name+"_"+i+(jpeg?".jpg":".png"));
-   var req=Json.D("sourceName",source,"imageFormat",jpeg?"jpg":"png","imageFilePath",file);if(jpeg)req["imageCompressionQuality"]=shotQuality;
-   await obs.Call("SaveSourceScreenshot",req);
-   if(!File.Exists(file))throw new IOException("OBS не сохранил снимок");
+   if(own){int q=shotQuality;await Task.Run(()=>WindowShot.Save(target,file,jpeg,q));}
+   else{var req=Json.D("sourceName",source,"imageFormat",jpeg?"jpg":"png","imageFilePath",file);if(jpeg)req["imageCompressionQuality"]=shotQuality;await obs.Call("SaveSourceScreenshot",req);}
+   if(!File.Exists(file))throw new IOException(own?"Снимок не сохранён":"OBS не сохранил снимок");
    Log.Write("Скриншот: "+Path.GetFileName(file)+" ("+source+")");Message("Скриншот: "+Path.GetFileName(file));
    Track(file);Notify("Скриншот сохранён",Path.GetFileName(file),ToastKind.Shot);ClipsChanged();}
  }

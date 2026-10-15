@@ -117,6 +117,26 @@ namespace ReplayOverlay {
    int acrylic=3;return DwmSetWindowAttribute(h,38,ref acrylic,4)==0;}
  }
 
+ // Снимок активного окна средствами Windows (без OBS). Окна, исключённые из захвата (меню Replay), в снимок не попадают.
+ public static class WindowShot {
+  [StructLayout(LayoutKind.Sequential)] struct RECT{public int Left,Top,Right,Bottom;}
+  [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr h,int attr,out RECT r,int size);
+  [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h,out RECT r);
+  [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h,out uint pid);
+  public static string ExeOf(IntPtr h){uint pid;GetWindowThreadProcessId(h,out pid);try{return System.Diagnostics.Process.GetProcessById((int)pid).ProcessName;}catch(Exception){return "Window";}}
+  public static void Save(IntPtr h,string file,bool jpeg,int quality){
+   if(h==IntPtr.Zero)throw new InvalidOperationException("Нет активного окна");
+   if(IsIconic(h))throw new InvalidOperationException("Окно свёрнуто");
+   RECT r;if(DwmGetWindowAttribute(h,9,out r,Marshal.SizeOf(typeof(RECT)))!=0)GetWindowRect(h,out r); // 9 — видимые границы без тени
+   int w=r.Right-r.Left,hh=r.Bottom-r.Top;if(w<=0||hh<=0)throw new InvalidOperationException("Окно не видно на экране");
+   using(var bmp=new System.Drawing.Bitmap(w,hh))using(var g=System.Drawing.Graphics.FromImage(bmp)){
+    g.CopyFromScreen(r.Left,r.Top,0,0,new System.Drawing.Size(w,hh));
+    if(!jpeg){bmp.Save(file,System.Drawing.Imaging.ImageFormat.Png);return;}
+    var codec=System.Drawing.Imaging.ImageCodecInfo.GetImageEncoders().First(c=>c.FormatID==System.Drawing.Imaging.ImageFormat.Jpeg.Guid);
+    var ep=new System.Drawing.Imaging.EncoderParameters(1);ep.Param[0]=new System.Drawing.Imaging.EncoderParameter(System.Drawing.Imaging.Encoder.Quality,(long)Math.Max(1,Math.Min(100,quality)));bmp.Save(file,codec,ep);}}
+ }
+
  // Заполненность диска: шкала показывает занятое место, текст — свободное.
  public sealed class DiskInfo {
   public string Name;public long Total,Free;public bool Available;

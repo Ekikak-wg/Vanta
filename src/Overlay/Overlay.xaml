@@ -262,7 +262,7 @@
      <TextBlock Text="Источник захвата" Style="{StaticResource Section}"/>
      <Border Style="{StaticResource Card}">
       <StackPanel>
-       <ComboBox x:Name="ShotSourceBox" Margin="0"><ComboBoxItem Content="Текущая игра" Tag="game"/><ComboBoxItem Content="То, что записывается (сцена OBS)" Tag="scene"/><ComboBoxItem Content="Весь экран" Tag="screen"/></ComboBox>
+       <ComboBox x:Name="ShotSourceBox" Margin="0"><ComboBoxItem Content="Текущая игра" Tag="game"/><ComboBoxItem Content="То, что записывается (сцена OBS)" Tag="scene"/><ComboBoxItem Content="Весь экран" Tag="screen"/><ComboBoxItem Content="Активное окно" Tag="window"/></ComboBox>
        <TextBlock x:Name="ShotSourceHint" Text="" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
       </StackPanel>
      </Border>
