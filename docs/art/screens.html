@@ -1,0 +1,263 @@
+<!doctype html>
+<!--
+  Картинки для README, нарисованные по src/Overlay/Overlay.xaml (цвета, размеры, тексты).
+  Пересобрать: node docs/art/render.mjs  →  docs/images/*.png
+-->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Replay OBS — картинки для README</title>
+<style>
+ :root{
+  --bg:rgba(13,15,19,.92); --side:rgba(16,18,22,.95); --card:#1A1D23; --hover:#252A32; --field:#1F2329;
+  --accent:#00D46A; --line:rgba(52,58,67,.35); --line2:#343A43; --text:#F5F6F7; --text2:#9CA3AF; --hint:#7F8793;
+ }
+ *{box-sizing:border-box;margin:0;padding:0}
+ body{background:#111;font-family:Inter,"Segoe UI",sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;padding:40px;display:flex;flex-direction:column;gap:40px;align-items:flex-start}
+ svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+ /* Сцена: «игра» + меню поверх */
+ .scene{position:relative;overflow:hidden}
+ .game{position:absolute;inset:0;background-size:cover;background-position:center}
+ .hud{position:absolute;inset:0;pointer-events:none}
+
+ /* Окно меню (Overlay.xaml: Width 560, Shell, сайдбар 112, шапка 68) */
+ .shell{position:absolute;left:0;top:0;width:560px;bottom:0;isolation:isolate;border-radius:0 16px 16px 0;border-right:1px solid var(--line);overflow:hidden;
+  display:grid;grid-template-columns:112px 1fr;grid-template-rows:68px 1fr auto}
+ .shell::before{content:"";position:absolute;inset:0;backdrop-filter:blur(28px) saturate(1.2);background:var(--bg);z-index:-1}
+ .header{grid-column:1/3;display:flex;align-items:center;padding:0 14px 0 20px;gap:12px}
+ .logo{width:30px;height:30px;border:3px solid var(--accent);border-radius:50%;display:grid;place-items:center;flex:none}
+ .logo::after{content:"";width:var(--dot,12px);height:var(--dot,12px);border-radius:50%;background:var(--accent)}
+ .brand{flex:1;min-width:0}
+ .brand b{font-size:20px;font-weight:600;letter-spacing:-.2px}
+ .brand b span{color:var(--accent)}
+ .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);margin-top:2px}
+ .status i{width:6px;height:6px;border-radius:50%;background:#8DCC38}
+ .shortcut{color:var(--accent);font-size:12px;margin-right:6px}
+ .ibtn{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:#DADDE2}
+ .side{grid-row:2/4;background:var(--side);border-radius:0 12px 0 16px;padding:10px 0}
+ .tab{position:relative;height:66px;margin-bottom:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#C9CDD3;font-size:11px;text-align:center;gap:5px}
+ .tab.tall{height:78px}
+ .tab svg.i{width:20px;height:20px}
+ .tab.on{color:var(--text)}
+ .tab.on::before{content:"";position:absolute;inset:0 6px;border-radius:10px;background:rgba(0,212,106,.12)}
+ .tab.on::after{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:2px;background:var(--accent)}
+ .tab.on svg.i{color:var(--accent)}
+ .tab>*{position:relative;z-index:1}
+ .page{padding:4px 10px 6px 14px;overflow:hidden}
+ .foot{grid-column:2;padding:4px 14px 14px}
+ .disk{display:flex;align-items:center;gap:10px;font-size:12px;color:#C4CAD2}
+ .disk svg.i{color:var(--text2);width:16px;height:16px}
+ .track{flex:1;height:6px;border-radius:3px;background:#363B43;overflow:hidden}
+ .track i{display:block;height:100%;background:var(--accent);border-radius:3px}
+
+ h1{font-size:20px;font-weight:600;margin:2px 0 12px}
+ h2{font-size:14px;font-weight:600;margin:8px 0 8px}
+ .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+ .row{display:flex;align-items:center;gap:0}
+ .row .ico{width:34px;flex:none;color:#DADDE2}
+ .grow{flex:1;min-width:0}
+ .t15{font-size:15px;font-weight:600}
+ .label{font-size:12px;color:var(--text2)}
+ .hint{font-size:11px;color:var(--hint);line-height:1.35}
+ .sw{width:40px;height:22px;border-radius:11px;background:#3A3F47;position:relative;flex:none}
+ .sw::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:var(--text)}
+ .sw.on{background:var(--accent)} .sw.on::after{left:21px}
+ .chips{display:grid;gap:5px}
+ .chip{background:var(--field);border:1px solid var(--line2);border-radius:8px;padding:8px 0;text-align:center;font-size:12px;color:#DADDE2}
+ .chip.on{border-color:var(--accent);background:rgba(0,212,106,.1);color:var(--text)}
+ .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--hover);border-radius:8px;padding:7px 12px;font-size:12px;color:var(--text)}
+ .btn.go{background:rgba(0,212,106,.12);color:#7DF0B0}
+ .big{display:flex;align-items:center;justify-content:center;gap:10px;height:64px;border-radius:8px;background:var(--accent);color:#06140C;font-size:15px;font-weight:600;margin-bottom:6px}
+ .big svg.i{stroke-width:1.8}
+ .slider{position:relative;height:22px;margin:6px 7px 0}
+ .slider::before{content:"";position:absolute;left:0;right:0;top:9px;height:4px;border-radius:2px;background:#363B43}
+ .slider .fill{position:absolute;left:0;top:9px;height:4px;border-radius:2px;background:var(--accent)}
+ .slider .knob{position:absolute;top:4px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--text);border:1px solid var(--card)}
+ .combo{position:relative;height:36px;margin-top:6px;border:1px solid var(--line2);border-radius:8px;background:var(--field);font-size:13px;color:#E6E8EB;display:flex;align-items:center;padding:0 30px 0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .combo.field::after{display:none}
+ .combo::after{content:"";position:absolute;right:13px;top:13px;width:6px;height:6px;border-right:1.5px solid var(--text2);border-bottom:1.5px solid var(--text2);transform:rotate(45deg)}
+ .key{background:#262B33;border-radius:6px;padding:4px 9px;font-size:12px;color:#DADDE2}
+ .mode{flex:1;background:var(--field);border-radius:8px;padding:9px 8px;text-align:center}
+ .mode.on{background:#27351C}
+ .mode b{display:block;font-size:13px;font-weight:600}
+ .mode small{display:block;font-size:11px;color:var(--text2);margin-top:2px}
+ .grid2{display:grid;gap:10px}
+
+ /* Галерея */
+ .clipgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ .clip{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px}
+ .clip.sel{border-color:var(--accent)}
+ .thumb{position:relative;height:100px;border-radius:6px;background-size:cover;overflow:hidden}
+ .thumb span{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.7);border-radius:4px;padding:2px 6px;font-size:11px}
+ .clip .n{font-size:12.5px;color:#E6E8EB;margin:7px 2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .clip .l{font-size:10.5px;color:#8E99A4;margin:3px 2px 2px;line-height:1.35}
+
+ /* Уведомление и подсказка клавиш (Chrome.cs) */
+ .toast{position:absolute;width:380px;min-height:76px;background:rgba(18,20,25,.95);border:1px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:14px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+ .toast .logo{width:34px;height:34px}
+ .toast .logo{--dot:13px}
+ .toast b{display:block;font-size:14px;font-weight:600}
+ .toast small{display:block;font-size:11.5px;color:var(--text2);margin-top:4px}
+ .badge{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#06140C;display:grid;place-items:center;flex:none}
+ .badge svg.i{width:13px;height:13px;stroke-width:2.6}
+ .keys{position:absolute;width:280px;background:rgba(18,20,25,.9);border:1px solid var(--line);border-radius:12px;padding:10px 12px 6px}
+ .keys div{display:grid;grid-template-columns:96px 1fr;align-items:center;margin-bottom:6px;font-size:11.5px;color:var(--text2)}
+ .keys kbd{justify-self:start;font:inherit;background:#2A2F37;border-radius:6px;padding:3px 8px;color:#E6E8EB}
+
+ /* Баннер */
+ .banner{width:1280px;height:400px;position:relative;overflow:hidden;border-radius:24px}
+</style>
+</head>
+<body>
+<!-- Сцены собираются скриптом ниже -->
+<script>
+const I = {
+ record:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>',
+ replay:'<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/><polyline points="12 7.5 12 12 15 14"/>',
+ camera:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+ image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+ gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+ x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+ save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+ disk:'<line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/>',
+ pen:'<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>',
+ pad:'<rect x="2" y="7" width="20" height="11" rx="5.5"/><line x1="7" y1="10.5" x2="7" y2="14.5"/><line x1="5" y1="12.5" x2="9" y2="12.5"/><circle cx="15.5" cy="11.5" r=".6" fill="currentColor"/><circle cx="17.5" cy="13.5" r=".6" fill="currentColor"/>',
+ folder:'<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+ grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+ list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+ check:'<polyline points="20 6 9 17 4 12"/>',
+ shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+ mic:'<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/>',
+};
+const ic = (n, cls='') => `<svg class="i ${cls}" viewBox="0 0 24 24">${I[n]}</svg>`;
+
+// «Игра»: закатный пейзаж — без чужих ассетов, рисуется здесь же.
+function landscape(h1='#1a1440', h2='#ff7a59', sun='#ffd27a', m=['#5b3a78','#3d2a5e','#24193f','#120d24']){
+ return 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+ <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${h1}"/><stop offset=".62" stop-color="${h2}"/><stop offset="1" stop-color="${h2}"/></linearGradient>
+ <radialGradient id="g" cx=".62" cy=".55" r=".5"><stop offset="0" stop-color="${sun}" stop-opacity=".55"/><stop offset="1" stop-color="${sun}" stop-opacity="0"/></radialGradient>
+ <linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".18"/></linearGradient></defs>
+ <rect width="1600" height="900" fill="url(#s)"/><rect width="1600" height="900" fill="url(#g)"/>
+ <circle cx="990" cy="470" r="95" fill="${sun}"/>
+ ${Array.from({length:60},(_,k)=>`<circle cx="${(k*263)%1600}" cy="${(k*97)%300}" r="${k%3?1:1.6}" fill="#fff" opacity="${.25+(k%5)/10}"/>`).join('')}
+ <path d="M0 560 L140 470 L260 520 L420 400 L560 500 L700 430 L860 520 L1010 440 L1180 530 L1330 420 L1480 500 L1600 450 V900 H0Z" fill="${m[0]}"/>
+ <rect y="430" width="1600" height="200" fill="url(#f)"/>
+ <path d="M0 640 L180 560 L330 610 L500 530 L650 600 L820 540 L980 620 L1150 550 L1320 620 L1480 560 L1600 600 V900 H0Z" fill="${m[1]}"/>
+ <path d="M0 730 L220 660 L420 720 L640 650 L880 720 L1100 660 L1320 730 L1600 670 V900 H0Z" fill="${m[2]}"/>
+ <path d="M0 800 Q400 760 800 800 T1600 790 V900 H0Z" fill="${m[3]}"/>
+ ${[80,190,1240,1380,1500].map((x,k)=>`<path d="M${x} ${820-k*6} l26 -120 l26 120z" fill="${m[3]}"/>`).join('')}
+ </svg>`);
+}
+const GAME = landscape();
+
+// Окно меню. tab: record | replay | shot | clips | settings
+function shell(tab, body, {foot=true}={}){
+ const t = (id, icon, label, tall) => `<div class="tab ${tall?'tall':''} ${tab===id?'on':''}">${ic(icon)}<div>${label}</div></div>`;
+ return `<div class="shell">
+  <div class="header"><div class="logo"></div>
+   <div class="brand"><b>Replay <span>OBS</span></b><div class="status"><i></i>OBS подключён · профиль «Игры»</div></div>
+   <div class="shortcut">Alt+Z</div><div class="ibtn">${ic('gear')}</div><div class="ibtn">${ic('x')}</div></div>
+  <div class="side">${t('record','record','Запись')}${t('replay','replay','Мгновенный<br>повтор',1)}${t('shot','camera','Скриншот')}${t('clips','image','Галерея')}${t('settings','gear','Настройки')}</div>
+  <div class="page">${body}</div>
+  ${foot?`<div class="foot"><div class="disk">${ic('disk')}<span>Диск D:</span><div class="track"><i style="width:38%"></i></div><span>1,14 ТБ свободно</span></div></div>`:''}
+ </div>`;
+}
+
+const replayPage = `
+ <h1>Мгновенный повтор</h1>
+ <div class="card">
+  <div class="row" style="align-items:flex-start">
+   <div class="ico" style="margin-top:2px">${ic('replay')}</div>
+   <div class="grow"><div class="t15">Мгновенный повтор</div>
+    <div class="label" style="margin:4px 8px 0 0;line-height:1.35">Постоянно сохраняет последние минуты игры в памяти. Интересный момент сохраняется горячей клавишей.</div>
+    <div class="hint" style="margin-top:6px">Включён · хранит последние 5 минут</div></div>
+   <div class="sw on" style="margin-top:2px"></div></div>
+  <div class="label" style="margin:14px 0 6px">Длительность буфера</div>
+  <div class="chips" style="grid-template-columns:repeat(5,1fr)"><div class="chip">1 мин</div><div class="chip">3 мин</div><div class="chip on">5 мин</div><div class="chip">10 мин</div><div class="chip">30 мин</div></div>
+  <div class="row" style="margin-top:12px"><div class="label grow">Своё значение</div><div style="font-size:13px;color:var(--accent)">5:00</div></div>
+  <div class="slider"><div class="fill" style="width:16.1%"></div><div class="knob" style="left:16.1%"></div></div>
+  <div class="btn" style="margin-top:8px">Применить длительность</div>
+ </div>
+ <div class="big">${ic('save')}Сохранить последние 5 минут</div>
+ <div class="label" style="text-align:center;margin-bottom:12px">Alt+F10</div>
+ <h2>Качество и звук повтора</h2>
+ <div class="card">
+  <div class="row" style="align-items:flex-start"><div class="grow"><div style="font-size:14px;font-weight:600">Отдельные настройки повтора</div>
+   <div class="hint" style="font-size:11.5px;margin:4px 10px 0 0">Нужен плагин Source Record для OBS — без него повтор пишется с теми же качеством и дорожками, что и запись (вкладка «Запись»).</div></div>
+   <div class="sw"></div></div>
+  <div class="btn" style="margin-top:10px">Открыть параметры записи</div>
+ </div>`;
+
+const recordPage = `
+ <h1>Запись</h1>
+ <div class="card">
+  <div class="row" style="align-items:flex-start"><div class="ico" style="margin-top:2px;color:#F04452">${ic('record')}</div>
+   <div class="grow"><div class="t15">Идёт запись</div><div class="label" style="margin-top:4px">Записывает игру или экран до ручной остановки</div>
+    <div class="row" style="margin-top:8px;gap:7px"><i style="width:8px;height:8px;border-radius:50%;background:#F04452"></i><span style="font-size:13px;font-weight:600;color:#F04452">00:12:47</span></div></div>
+   <div class="sw on"></div></div></div>
+ <div class="card"><div class="row"><div class="grow" style="font-size:13px">Начать / остановить запись</div><span class="key">Alt+F9</span><div class="ibtn" style="width:30px;height:30px;margin-left:6px">${ic('pen')}</div></div></div>
+ <h2>Источник</h2>
+ <div class="card">
+  <div class="row"><div class="ico">${ic('pad')}</div><div class="grow"><div class="label">Текущий источник</div><div style="font-size:14px;margin-top:3px">Игра: cs2.exe</div></div></div>
+  <div class="row" style="gap:8px;margin-top:12px"><div class="mode on"><b>Только игра</b><small>Alt+Tab не виден</small></div><div class="mode"><b>Игра и экран</b><small>видно весь монитор</small></div></div>
+  <div class="hint" style="margin-top:8px">Записывается только окно игры: Alt+Tab, рабочий стол и другие программы в запись не попадут.</div>
+ </div>
+ <h2>Качество записи</h2>
+ <div class="card">
+  <div class="grid2" style="grid-template-columns:1fr 110px"><div><div class="label">Разрешение</div><div class="combo">1920 × 1080</div></div><div><div class="label">Кадров/с</div><div class="combo">60</div></div></div>
+  <div class="grid2" style="grid-template-columns:1fr 1fr;margin-top:10px"><div><div class="label">Кодировщик</div><div class="combo">NVIDIA NVENC</div></div><div><div class="label">Кодек</div><div class="combo">HEVC</div></div></div>
+  <div class="label" style="margin-top:10px">Качество</div><div class="combo">Высокое</div>
+  <div class="grid2" style="grid-template-columns:150px 1fr;margin-top:10px"><div><div class="label">Формат файла</div><div class="combo">Гибридный MP4</div></div><div><div class="label">Шаблон имени</div><div class="combo field" style="padding-right:12px">%CCYY-%MM-%DD_%hh-%mm-%ss</div></div></div>
+ </div>`;
+
+function thumb(h1,h2,sun,pos){return `background-image:url("${landscape(h1,h2,sun)}");background-position:${pos}`}
+const clips = [
+ ['Replay 2026-10-15_21-04-12','cs2.exe · повтор · 15 окт., 21:04 · 5:00 · 412 МБ · MKV','5:00',thumb('#1a1440','#ff7a59','#ffd27a','60% 50%'),1],
+ ['Replay 2026-10-15_20-41-55','cs2.exe · повтор · 15 окт., 20:41 · 5:00 · 398 МБ · MKV','5:00',thumb('#0b2540','#2fb3a8','#e7fff6','30% 60%')],
+ ['2026-10-15_19-02-31','eldenring.exe · запись · 15 окт., 19:02 · 42:18 · 3,1 ГБ · MP4','42:18',thumb('#2a0f1f','#d94f5c','#ffc2a8','80% 40%')],
+ ['Screenshot 2026-10-15_18-57-06','eldenring.exe · скриншот · 15 окт., 18:57 · 2560×1440 · 4,2 МБ · PNG','PNG',thumb('#101a3a','#6a7bff','#fff0c2','20% 50%')],
+ ['Replay 2026-10-14_23-15-40','valorant.exe · повтор · 14 окт., 23:15 · 3:00 · 247 МБ · MKV','3:00',thumb('#26103a','#b45cff','#ffe0ff','50% 70%')],
+ ['2026-10-14_22-01-09','valorant.exe · запись · 14 окт., 22:01 · 18:44 · 1,4 ГБ · MP4','18:44',thumb('#1d2a12','#9bd94f','#fbffd0','70% 50%')],
+];
+const clipsPage = `
+ <div class="row" style="align-items:flex-start;margin-bottom:4px"><h1 class="grow">Галерея</h1>
+  <div class="chip on" style="width:36px;padding:7px 0;display:grid;place-items:center">${ic('grid','sm')}</div>
+  <div class="chip" style="width:36px;padding:7px 0;margin:0 8px 0 4px;display:grid;place-items:center">${ic('list','sm')}</div>
+  <div class="btn">Открыть папку</div></div>
+ <div class="chips" style="grid-template-columns:repeat(4,1fr);margin-bottom:10px"><div class="chip on">Все</div><div class="chip">Записи</div><div class="chip">Повторы</div><div class="chip">Скриншоты</div></div>
+ <div class="hint" style="font-size:12px;margin-bottom:10px">24 файла · 11,8 ГБ · D:\\Videos\\Replay</div>
+ <div class="clipgrid">${clips.map(([n,l,b,st,sel])=>`<div class="clip ${sel?'sel':''}"><div class="thumb" style='${st}'><span>${b}</span></div><div class="n">${n}</div><div class="l">${l}</div></div>`).join('')}</div>`;
+
+// HUD «игры» справа: прицел и компас — чтобы было видно, что меню поверх игры.
+const hud = (w,h) => `<div class="hud">
+ <div style="position:absolute;left:${w/2+140}px;top:${h/2}px;width:18px;height:18px;margin:-9px;border:2px solid rgba(255,255,255,.8);border-radius:50%"></div>
+ <div style="position:absolute;left:${w/2+140-160}px;top:28px;width:320px;height:22px;border-bottom:2px solid rgba(255,255,255,.35);display:flex;justify-content:space-between;font:600 12px Inter;color:rgba(255,255,255,.7);letter-spacing:2px"><span>З</span><span>·</span><span style="color:#fff">С</span><span>·</span><span>В</span></div>
+</div>`;
+
+const toast = (x,y) => `<div class="toast" style="right:${x}px;top:${y}px"><div class="logo"></div><div class="grow"><b>Сохранён момент из повтора</b><small>Replay 2026-10-15_21-04-12.mkv</small></div><div class="badge">${ic('check')}</div></div>`;
+const keys = (x,y) => `<div class="keys" style="right:${x}px;bottom:${y}px">
+ <div><kbd>Alt + Z</kbd>Открыть / закрыть меню</div><div><kbd>Alt + F10</kbd>Сохранить повтор</div><div><kbd>Alt + F9</kbd>Начать / остановить запись</div><div><kbd>Alt + F8</kbd>Сделать скриншот</div></div>`;
+
+function scene(id, w, h, inner){
+ document.body.insertAdjacentHTML('beforeend', `<div class="scene" id="${id}" style="width:${w}px;height:${h}px"><div class="game" style='background-image:url("${GAME}")'></div>${inner}</div>`);
+}
+
+// 1. Главная картинка: меню поверх игры, уведомление и подсказка клавиш.
+scene('hero', 1600, 900, hud(1600,900) + shell('replay', replayPage) + toast(28,28) + keys(28,28));
+// 2–4. Вкладки отдельно (окно меню без игры вокруг).
+for (const [id, tab, body] of [['tab-record','record',recordPage],['tab-replay','replay',replayPage],['tab-clips','clips',clipsPage]])
+ scene(id, 560, 820, shell(tab, body));
+// 5. Баннер для соцсетей / превью репозитория.
+document.body.insertAdjacentHTML('beforeend', `<div class="scene banner" id="social" style="width:1280px;height:640px;border-radius:0">
+ <div class="game" style='background-image:url("${GAME}");filter:brightness(.55)'></div>
+ <div style="position:absolute;left:96px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:22px">
+  <div class="row" style="gap:22px"><div class="logo" style="width:84px;height:84px;border-width:8px;--dot:34px"></div><div style="font-size:76px;font-weight:700;letter-spacing:-1.5px">Replay <span style="color:var(--accent)">OBS</span></div></div>
+  <div style="font-size:30px;color:#E6E8EB;max-width:640px;line-height:1.3">Мгновенный повтор поверх игр<br>для OBS Studio — по Alt+Z</div>
+  <div class="row" style="gap:10px;margin-top:8px">${['Повтор','Запись','Скриншоты','Галерея','Приватность'].map(s=>`<span style="font-size:18px;padding:8px 14px;border-radius:10px;background:rgba(0,212,106,.14);color:#7DF0B0">${s}</span>`).join('')}</div>
+ </div>
+ <div style="position:absolute;right:64px;top:64px;bottom:-140px;width:560px;transform:scale(.86);transform-origin:top right">${shell('replay', replayPage)}</div>
+</div>`);
+</script>
+</body>
+</html>
