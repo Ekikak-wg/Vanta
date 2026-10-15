@@ -114,7 +114,7 @@ namespace ReplayOverlay {
     if(fname!=filenameFormat)await obs.Call("SetProfileParameter",Json.D("parameterCategory","Output","parameterName","FilenameFormatting","parameterValue",fname));
     await obs.Call("SetVideoSettings",Json.D("outputWidth",res[0],"outputHeight",res[1],"fpsNumerator",fps,"fpsDenominator",1));
     if(typeChanged)await ReloadProfile(startProfile);
-    if(resume){await obs.Call("StartReplayBuffer");await WaitBuffer(true);}
+    if(resume)await StartReplayWhenReady();
     Log.Write("Параметры записи: "+res[0]+"×"+res[1]+" "+fps+" к/с"+(enc!=null?" · "+enc.Id+" · "+quality.Mode+(quality.Mode=="custom"?" "+quality.RateControl+" "+quality.Value:""):"")+" · "+format);
     Message("Настройки применены"+(typeChanged?" · кодировщик: "+enc.VendorLabel+" "+enc.CodecLabel:"")+(resume?" · буфер запущен заново":""));}
    catch(Exception ex){failure=ex;}
@@ -131,7 +131,7 @@ namespace ReplayOverlay {
        await obs.Call("SetProfileParameter",Json.D("parameterCategory","Output","parameterName","FilenameFormatting","parameterValue",oldFilename));
        await obs.Call("SetVideoSettings",Json.D("outputWidth",Json.Int(oldVideo,"outputWidth"),"outputHeight",Json.Int(oldVideo,"outputHeight"),"fpsNumerator",Json.Int(oldVideo,"fpsNumerator"),"fpsDenominator",Json.Int(oldVideo,"fpsDenominator")));
        if(typeChanged)await ReloadProfile(startProfile);}
-      if(resume&&!Json.Bool(await obs.Call("GetReplayBufferStatus"),"outputActive"))await obs.Call("StartReplayBuffer");}
+      if(resume&&!Json.Bool(await obs.Call("GetReplayBufferStatus"),"outputActive"))await StartReplayWhenReady();}
      catch(Exception rollbackError){failure=new InvalidOperationException("Проверьте настройки OBS: откат не завершён. "+failure.Message+" / "+rollbackError.Message);}
      Log.Write("Параметры записи не применены: "+failure.Message);throw failure;}}
    finally{busy=false;UpdateControls();}
@@ -141,10 +141,15 @@ namespace ReplayOverlay {
   async Task ReloadProfile(string name){
    object raw;(await obs.Call("GetProfileList")).TryGetValue("profiles",out raw);bool exists=((raw as object[])??new object[0]).Any(p=>Convert.ToString(p)==TempProfile);
    if(exists)await obs.Call("SetCurrentProfile",Json.D("profileName",TempProfile));else await obs.Call("CreateProfile",Json.D("profileName",TempProfile));
+   await WaitProfile(TempProfile);
    await obs.Call("SetCurrentProfile",Json.D("profileName",name));
-   try{await obs.Call("RemoveProfile",Json.D("profileName",TempProfile));}catch(Exception ex){Log.Write("Служебный профиль не удалён: "+ex.Message);}
-   for(int i=0;i<50;i++){if(Json.Str(await obs.Call("GetProfileList"),"currentProfileName")==name)break;await Task.Delay(100);}
+   await WaitProfile(name);
+   // OBS переключает профиль не мгновенно: служебный удаляем с повторами, пока он не перестанет быть «занятым».
+   for(int i=0;;i++){try{await obs.Call("RemoveProfile",Json.D("profileName",TempProfile));break;}catch(InvalidOperationException ex){if(i>=5){Log.Write("Служебный профиль не удалён: "+ex.Message);break;}}await Task.Delay(400);}
    Log.Write("Профиль OBS перезагружен — новый кодировщик подключён");}
+  async Task WaitProfile(string name){for(int i=0;i<50;i++){if(Json.Str(await obs.Call("GetProfileList"),"currentProfileName")==name)return;await Task.Delay(100);}}
+  // После перезагрузки профиля буфер повтора готов не сразу: OBS отвечает «недоступен» (604) — пробуем до 5 секунд.
+  async Task StartReplayWhenReady(){for(int i=0;;i++){try{await obs.Call("StartReplayBuffer");break;}catch(InvalidOperationException ex){if(!ex.Message.EndsWith("(604)")||i>=20)throw;}await Task.Delay(250);}await WaitBuffer(true);}
 
   async Task ApplyReplayPrefix(){EnsureReady();string p=C<TextBox>("ReplayPrefixBox").Text.Trim();string err=p.Length==0?null:CheckFilename(p);if(err!=null)throw new InvalidOperationException(err);
    await obs.Call("SetProfileParameter",Json.D("parameterCategory",OutputSection,"parameterName","RecRBPrefix","parameterValue",p));replayPrefix=p;ClipReplayPrefix=p.Length>0?p:"Replay";
