@@ -229,11 +229,10 @@ const clipsPage = `
  <div class="hint" style="font-size:12px;margin-bottom:10px">24 файла · 11,8 ГБ · D:\\Videos\\Replay</div>
  <div class="clipgrid">${clips.map(([n,l,b,st,sel])=>`<div class="clip ${sel?'sel':''}"><div class="thumb" style='${st}'><span>${b}</span></div><div class="n">${n}</div><div class="l">${l}</div></div>`).join('')}</div>`;
 
-// HUD «игры» справа: прицел, компас, здоровье/патроны — чтобы было видно, что меню поверх игры.
+// HUD «игры» справа: прицел и компас — чтобы было видно, что меню поверх игры.
 const hud = (w,h) => `<div class="hud">
  <div style="position:absolute;left:${w/2+140}px;top:${h/2}px;width:18px;height:18px;margin:-9px;border:2px solid rgba(255,255,255,.8);border-radius:50%"></div>
  <div style="position:absolute;left:${w/2+140-160}px;top:28px;width:320px;height:22px;border-bottom:2px solid rgba(255,255,255,.35);display:flex;justify-content:space-between;font:600 12px Inter;color:rgba(255,255,255,.7);letter-spacing:2px"><span>З</span><span>·</span><span style="color:#fff">С</span><span>·</span><span>В</span></div>
- <div style="position:absolute;left:${w/2+140-150}px;bottom:36px;width:300px;font:600 13px Inter;color:#fff;display:flex;gap:12px;align-items:center"><span>♥ 87</span><div style="flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.25)"><div style="width:87%;height:100%;border-radius:4px;background:#ff5c6c"></div></div><span>24 / 90</span></div>
 </div>`;
 
 const toast = (x,y) => `<div class="toast" style="right:${x}px;top:${y}px"><div class="logo"></div><div class="grow"><b>Сохранён момент из повтора</b><small>Replay 2026-10-15_21-04-12.mkv</small></div><div class="badge">${ic('check')}</div></div>`;
