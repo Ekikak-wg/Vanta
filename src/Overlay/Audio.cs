@@ -196,6 +196,53 @@ namespace ReplayOverlay {
    return name;
   }
   public async Task Remove(string name){await call("RemoveInput",Json.D("inputName",name));State.Created.Remove(name);State.SavedMasks.Remove(name);}
+  // ——— Раскладка дорожек: common — всё в дорожку 1; split — 1 общий + 2 игра, 3 микрофон, 4 Discord, 5 рабочий стол/программы; custom — как настроил пользователь ———
+  // Роли источников: desktop (звук рабочего стола), mic, game (захват игры), discord, app (звук программы от меню), output (ещё устройство вывода), other.
+  // desktopRecorded — пишется ли звук рабочего стола (режим «весь звук компьютера»). Если нет, игра и Discord идут в общую дорожку своими источниками.
+  public static int Desired(string layout,bool desktopRecorded,string role){
+   bool inFull=role=="mic"||role=="app"||role=="output"||(role=="desktop"&&desktopRecorded)||((role=="game"||role=="discord")&&!desktopRecorded);
+   int m=inFull?Full:0;
+   if(layout=="split"){if(role=="game")m|=Game;else if(role=="mic")m|=Mic;else if(role=="discord")m|=Discord;else if((role=="desktop"&&desktopRecorded)||role=="app"||role=="output")m|=Desktop;}
+   return m;}
+  public static int RecTracksFor(string layout,int current,int custom){return layout=="common"?Full:layout=="split"?(31|(current&32)):Math.Max(1,custom&63);}
+  public static string LayoutOf(int recTracks){return recTracks==1?"common":(recTracks&31)==31?"split":"custom";}
+  public sealed class AudioSource{public string Name,Role;public int Mask;public bool GameAudio;}
+  // Дубли: на записываемой дорожке есть «Звук рабочего стола» и ещё отдельный источник с тем же звуком (игра, Discord, программа).
+  public static List<string> Duplicates(IEnumerable<AudioSource> sources,int recTracks){
+   var list=sources.ToList();var res=new List<string>();
+   foreach(var d in list.Where(s=>s.Role=="desktop"))for(int t=0;t<6;t++){int bit=1<<t;if((recTracks&bit)==0||(d.Mask&bit)==0)continue;
+    foreach(var s in list.Where(x=>(x.Role=="discord"||x.Role=="app"||(x.Role=="game"&&x.GameAudio))&&(x.Mask&bit)!=0))
+     res.Add("Дорожка "+(t+1)+": звук «"+s.Name+"» записывается дважды — и через «"+d.Name+"», и отдельно");}
+   return res;}
+  // Источники со звуком и их роли.
+  public async Task<List<AudioSource>> Sources(){
+   var special=await call("GetSpecialInputs",Json.D());string desktop=Json.Str(special,"desktop1");var res=new List<AudioSource>();
+   foreach(var i in await Inputs(null)){string name=Json.Str(i,"inputName"),kind=Json.Str(i,"inputKind");string role;
+    if(name==desktop)role="desktop";else if(kind=="wasapi_input_capture")role="mic";else if(kind=="game_capture")role="game";
+    else if(kind=="wasapi_process_output_capture")role=name.StartsWith(AppPrefix)?"app":Json.Str(Json.Obj((await call("GetInputSettings",Json.D("inputName",name)))["inputSettings"]),"window").EndsWith(":Discord.exe",StringComparison.OrdinalIgnoreCase)?"discord":"app";
+    else if(kind=="wasapi_output_capture")role="output";else continue;
+    var src=new AudioSource{Name=name,Role=role};try{src.Mask=await GetMask(name);}catch(InvalidOperationException){continue;}
+    if(role=="game")src.GameAudio=Json.Bool(Json.Obj((await call("GetInputSettings",Json.D("inputName",name)))["inputSettings"]),"capture_audio");
+    res.Add(src);}
+   return res;}
+  // Применить раскладку. Возвращает журнал; RecTracks меняется только при необходимости (тогда вызывающий перезапускает буфер).
+  public async Task<List<string>> ApplyLayout(string layout,bool desktopRecorded,int customRecTracks){
+   var log=new List<string>();
+   if(Json.Str(await call("GetProfileParameter",Json.D("parameterCategory","Output","parameterName","Mode")),"parameterValue")!="Advanced")
+    throw new InvalidOperationException("Включите в OBS расширенный режим вывода: Настройки → Вывод → Режим вывода «Расширенный»");
+   if(layout!="custom")foreach(var s in await Sources()){
+    if(s.Role=="game"&&(layout=="split"||!desktopRecorded))await EnableGameAudio(s.Name);
+    int want=Desired(layout,desktopRecorded,s.Role);if(want!=s.Mask){await SetMask(s.Name,want);log.Add("«"+s.Name+"» → "+(want==0?"не записывается":"дорожки "+string.Join(", ",Enumerable.Range(0,6).Where(t=>(want&(1<<t))!=0).Select(t=>(t+1).ToString()))));}
+    // Сохранённые для режима «весь звук» маски — тоже по новой раскладке, чтобы возврат в этот режим её не ломал.
+    if(State.SavedMasks.ContainsKey(s.Name))State.SavedMasks[s.Name]=Desired(layout,true,s.Role);}
+   int rec;int.TryParse(Json.Str(await call("GetProfileParameter",Json.D("parameterCategory","AdvOut","parameterName","RecTracks")),"parameterValue"),out rec);
+   int target=RecTracksFor(layout,rec,customRecTracks);
+   if(target!=rec){await call("SetProfileParameter",Json.D("parameterCategory","AdvOut","parameterName","RecTracks","parameterValue",target.ToString()));log.Add("в запись и повтор: дорожки "+string.Join(", ",Enumerable.Range(0,6).Where(t=>(target&(1<<t))!=0).Select(t=>(t+1).ToString())));}
+   for(int i=0;i<TrackNames.Length;i++){string key="Track"+(i+1)+"Name";
+    if(Json.Str(await call("GetProfileParameter",Json.D("parameterCategory","AdvOut","parameterName",key)),"parameterValue").Length==0)
+     await call("SetProfileParameter",Json.D("parameterCategory","AdvOut","parameterName",key,"parameterValue",TrackNames[i]));}
+   return log;}
+
   // Для режима «все, кроме»: какие программы со звуком нужно добавить.
   public static List<string> MissingApps(IEnumerable<string> active,ICollection<string> excluded,ICollection<string> skip,AudioState state) {
    return active.Where(a=>!excluded.Contains(a)&&!skip.Contains(a)&&!state.Created.Contains(AppPrefix+a)).ToList();

@@ -373,7 +373,8 @@ namespace ReplayOverlay {
    audio=new AudioSetup((r,d)=>obs.Call(r,d),audioState);
    var mode=C<ComboBox>("AudioModeBox");SelectTag(mode,audioMode);
    mode.SelectionChanged+=(s,e)=>{var it=mode.SelectedItem as ComboBoxItem;if(it==null)return;string m=Convert.ToString(it.Tag);if(m!=audioMode)Run(()=>SetAudioMode(m));};
-   C<Button>("SplitTracksButton").Click+=(s,e)=>Run(SplitTracks);
+   foreach(var l in new[]{new[]{"LayoutCommon","common"},new[]{"LayoutSplit","split"},new[]{"LayoutCustom","custom"}}){string tag=l[1];C<RadioButton>(l[0]).Click+=(s,e)=>{chosenLayout=tag;UpdateLayoutUi();};}
+   C<Button>("LayoutApply").Click+=(s,e)=>Run(ApplyTrackLayout);
    C<ComboBox>("AudioAppBox").DropDownOpened+=(s,e)=>FillAudioApps();
    C<Button>("AddAudioAppButton").Click+=(s,e)=>{var l=audioMode=="except"?audioExcept:audioOnly;OpenPicker(audioMode=="except"?"Не записывать звук приложения":"Записывать звук приложения",audioMode=="except"?"Звук этой программы не попадёт в запись.":"В запись попадёт звук только выбранных программ (и игры, Discord, микрофона).",l,n=>{if(!l.Contains(n))l.Add(n);SavePrefs();RenderAudioApps();Run(ReapplyAudio);});};
    C<Button>("AddDeviceButton").Click+=(s,e)=>Run(AddDevice);
@@ -406,18 +407,27 @@ namespace ReplayOverlay {
     if(missing.Count>0){SavePrefs();if(C<StackPanel>("RecordPage").Visibility==Visibility.Visible)await RenderMixer();}}
    catch(Exception ex){Log.Write("Звук программ: "+ex.Message);}
    finally{audioBusy=false;}}
-  async Task SplitTracks(){EnsureReady();
+  string chosenLayout="split";int recTracksNow=31;
+  int CustomRecTracks(){int m=0;for(int i=0;i<6;i++)if(C<System.Windows.Controls.Primitives.ToggleButton>("RecT"+(i+1)).IsChecked==true)m|=1<<i;return m;}
+  void UpdateLayoutUi(){
+   C<StackPanel>("RecTracksPanel").Visibility=chosenLayout=="custom"?Visibility.Visible:Visibility.Collapsed;
+   C<TextBlock>("LayoutHint").Text=chosenLayout=="common"?"Одна дорожка: игра, Discord, микрофон и программы смешаны. Файл открывается и звучит одинаково везде.":chosenLayout=="split"?"1 — всё вместе, 2 — игра, 3 — микрофон, 4 — Discord, 5 — рабочий стол и программы. В монтаже каждую можно отдельно приглушить. Плееры и Discord играют только дорожку 1.":"Вы сами выбираете записываемые дорожки ниже и раскладываете источники стрелкой «›». Меню проверит, нет ли двойного звука.";}
+  // Применить раскладку дорожек: маски источников и список записываемых дорожек. Если список меняется — буфер повтора перезапускается.
+  async Task ApplyTrackLayout(){EnsureReady();string layout=chosenLayout;int custom=CustomRecTracks();
+   if(layout=="custom"&&custom==0)throw new InvalidOperationException("Выберите хотя бы одну дорожку для записи");
    MessageBoxResult ok;dialogOpen=true;
-   try{ok=MessageBox.Show(window,"Звук разделится по дорожкам:\n1 — общий, 2 — игра, 3 — микрофон, 4 — Discord, 5 — рабочий стол.\n\nЕсли меняется список записываемых дорожек, буфер повтора перезапустится и накопленная история сбросится. Продолжить?","Replay — звук",MessageBoxButton.OKCancel,MessageBoxImage.Question);}
+   try{ok=MessageBox.Show(window,(layout=="common"?"Весь звук пойдёт в одну дорожку.":layout=="split"?"Звук разделится: 1 — всё вместе, 2 — игра, 3 — микрофон, 4 — Discord, 5 — рабочий стол.":"Будут записываться выбранные дорожки; источники останутся на своих дорожках.")+"\n\nЕсли меняется список записываемых дорожек, буфер повтора перезапустится и накопленная история сбросится. Продолжить?","Replay — звук",MessageBoxButton.OKCancel,MessageBoxImage.Question);}
    finally{dialogOpen=false;window.Activate();}
    if(ok!=MessageBoxResult.OK)return;
    bool discord=Process.GetProcessesByName("Discord").Length>0||File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Discord\Update.exe"));
    busy=true;UpdateControls();bool restart=false;
-   try{var log=await audio.SplitTracks(CaptureScenes(),discord);foreach(string l in log)Log.Write("Звук: "+l);SavePrefs();
+   try{
+    if(layout=="split"&&discord&&await audio.ProcessSource("Discord.exe")==null&&CaptureScenes().Count>0){await audio.CreateInScenes("Discord — звук","wasapi_process_output_capture",Json.D("window","::Discord.exe","priority",2),CaptureScenes());Log.Write("Звук: создан источник «Discord — звук»");}
+    var log=await audio.ApplyLayout(layout,audioMode=="all",custom);foreach(string l in log)Log.Write("Звук: "+l);SavePrefs();
     restart=replay&&log.Any(l=>l.StartsWith("в запись"));
     if(restart){await obs.Call("StopReplayBuffer");await WaitBuffer(false);await obs.Call("StartReplayBuffer");await WaitBuffer(true);}}
    finally{busy=false;UpdateControls();}
-   Message("Звук разделён по дорожкам"+(restart?" · буфер запущен заново":""));await RenderMixer();}
+   Message((layout=="common"?"Звук — одной дорожкой":layout=="split"?"Звук разделён по дорожкам":"Раскладка дорожек сохранена")+(restart?" · буфер запущен заново":""));await RenderMixer();}
   async Task FillDevices(){
    if(!obs.Connected)return;var box=C<ComboBox>("DeviceBox");box.Items.Clear();
    foreach(bool input in new[]{true,false})foreach(var dv in await audio.Devices(input))box.Items.Add(new ComboBoxItem{Content=(input?"Микрофон: ":"Вывод: ")+dv.Key,Tag=(input?"in":"out")+"|"+dv.Key.Replace("|","/")+"|"+dv.Value,ToolTip=dv.Key});
@@ -444,6 +454,9 @@ namespace ReplayOverlay {
    var names=new string[6];for(int i=0;i<6;i++){try{names[i]=Json.Str(await obs.Call("GetProfileParameter",Json.D("parameterCategory","AdvOut","parameterName","Track"+(i+1)+"Name")),"parameterValue");}catch(InvalidOperationException){names[i]="";}}
    int rec=0;try{int.TryParse(Json.Str(await obs.Call("GetProfileParameter",Json.D("parameterCategory","AdvOut","parameterName","RecTracks")),"parameterValue"),out rec);}catch(InvalidOperationException){}
    var parts=new List<string>();for(int i=0;i<6;i++)if((rec&(1<<i))!=0)parts.Add((i+1)+(names[i].Length>0?" "+names[i]:""));
+   recTracksNow=rec;chosenLayout=AudioSetup.LayoutOf(rec);foreach(var l in new[]{new[]{"LayoutCommon","common"},new[]{"LayoutSplit","split"},new[]{"LayoutCustom","custom"}})C<RadioButton>(l[0]).IsChecked=l[1]==chosenLayout;
+   for(int i=0;i<6;i++)C<System.Windows.Controls.Primitives.ToggleButton>("RecT"+(i+1)).IsChecked=(rec&(1<<i))!=0;UpdateLayoutUi();
+   try{var dups=AudioSetup.Duplicates(await audio.Sources(),rec);var dw=C<TextBlock>("DuplicateWarn");dw.Visibility=dups.Count>0?Visibility.Visible:Visibility.Collapsed;dw.Text=string.Join("\n",dups.Select(x=>"⚠ "+x));}catch(Exception ex){Log.Write("Проверка дублей звука: "+ex.Message);}
    C<TextBlock>("TracksInfo").Text=outputMode!="Advanced"?"Дорожки записи настраиваются в расширенном режиме вывода OBS.":parts.Count>0?"Записываются дорожки: "+string.Join(", ",parts)+".":"Дорожки записи не выбраны.";
    var rows=new List<UIElement>();var buttons=new Dictionary<string,System.Windows.Controls.Primitives.ToggleButton>();
    foreach(object o in (raw as object[])??new object[0]){string name=Json.Str(Json.Obj(o),"inputName"),kind=Json.Str(Json.Obj(o),"inputKind");

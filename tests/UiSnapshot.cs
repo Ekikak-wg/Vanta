@@ -26,7 +26,8 @@ static class UiSnapshot {
     var root=(FrameworkElement)w.Content;root.UpdateLayout();
     var rtb=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);rtb.Render(root);
     var enc=new PngBitmapEncoder();enc.Frames.Add(BitmapFrame.Create(rtb));string file=Path.Combine(outDir,"ui-"+page+".png");using(var f=File.Create(file))enc.Save(f);
-    Console.WriteLine("снимок: "+file);}
+    Console.WriteLine("снимок: "+file);
+    if(page=="record"){((System.Windows.Controls.ScrollViewer)w.FindName("PageScroll")).ScrollToEnd();Pump(300);root.UpdateLayout();var rtb2=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);rtb2.Render(root);var enc2=new PngBitmapEncoder();enc2.Frames.Add(BitmapFrame.Create(rtb2));using(var f2=File.Create(Path.Combine(outDir,"ui-record-bottom.png")))enc2.Save(f2);}}
    // Окно выбора приложения с настоящим списком запущенных программ.
    var open=typeof(Overlay).GetMethod("OpenPicker",BindingFlags.NonPublic|BindingFlags.Instance);
    open.Invoke(ov,new object[]{"Не записывать приложение","Пока окно этого приложения видно на экране, в записи будет только игра.",new System.Collections.Generic.List<string>(),new Action<string>(n=>Console.WriteLine("выбрано: "+n))});

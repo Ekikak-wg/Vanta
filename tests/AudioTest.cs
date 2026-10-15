@@ -100,6 +100,22 @@ static class AudioTest {
   var json = Json.Decode(Json.Encode(st.ToJson())); var back = AudioState.FromJson(json);
   Check(back.Created.SequenceEqual(st.Created), "состояние звука сохраняется и читается");
 
+  // Раскладка дорожек
+  Func<string,bool,string,int> D = AudioSetup.Desired;
+  Check(D("split", true, "desktop") == 17 && D("split", true, "mic") == 5 && D("split", true, "game") == 2 && D("split", true, "discord") == 8, "раздельные при «весь звук»: рабочий стол 1+5, микрофон 1+3, игра 2, Discord 4 — как прежняя кнопка");
+  Check(D("split", false, "desktop") == 0 && D("split", false, "game") == 3 && D("split", false, "discord") == 9 && D("split", false, "app") == 17, "раздельные при «только выбранные»: рабочий стол не пишется, игра и Discord в общей дорожке своими источниками");
+  Check(D("common", true, "desktop") == 1 && D("common", true, "game") == 0 && D("common", true, "discord") == 0 && D("common", true, "mic") == 1, "общая при «весь звук»: игра и Discord уже есть в звуке рабочего стола — отдельно не пишутся");
+  Check(D("common", false, "game") == 1 && D("common", false, "app") == 1 && D("common", false, "desktop") == 0, "общая при «кроме выбранных»: всё своими источниками в дорожку 1");
+  Check(AudioSetup.RecTracksFor("common", 63, 0) == 1 && AudioSetup.RecTracksFor("split", 1, 0) == 31 && AudioSetup.RecTracksFor("split", 33, 0) == 63 && AudioSetup.RecTracksFor("custom", 31, 5) == 5, "записываемые дорожки: общая — 1, раздельные — 1–5 (6-я сохраняется), своя — как выбрано");
+  Check(AudioSetup.LayoutOf(1) == "common" && AudioSetup.LayoutOf(31) == "split" && AudioSetup.LayoutOf(63) == "split" && AudioSetup.LayoutOf(5) == "custom", "раскладка узнаётся по записываемым дорожкам");
+  var srcOk = new[] { new AudioSetup.AudioSource { Name = "Рабочий стол", Role = "desktop", Mask = 17 }, new AudioSetup.AudioSource { Name = "Игра", Role = "game", Mask = 2, GameAudio = true }, new AudioSetup.AudioSource { Name = "Discord", Role = "discord", Mask = 8 } };
+  Check(AudioSetup.Duplicates(srcOk, 31).Count == 0, "раздельные: дублей нет");
+  var srcDup = new[] { new AudioSetup.AudioSource { Name = "Рабочий стол", Role = "desktop", Mask = 1 }, new AudioSetup.AudioSource { Name = "Игра", Role = "game", Mask = 1, GameAudio = true }, new AudioSetup.AudioSource { Name = "Discord", Role = "discord", Mask = 2 } };
+  var dups = AudioSetup.Duplicates(srcDup, 1);
+  Check(dups.Count == 1 && dups[0].Contains("Игра") && dups[0].StartsWith("Дорожка 1"), "игра и рабочий стол на одной записываемой дорожке — дубль: " + string.Join("; ", dups));
+  var srcSilentGame = new[] { new AudioSetup.AudioSource { Name = "Рабочий стол", Role = "desktop", Mask = 1 }, new AudioSetup.AudioSource { Name = "Игра", Role = "game", Mask = 1, GameAudio = false } };
+  Check(AudioSetup.Duplicates(srcSilentGame, 1).Count == 0, "захват игры без звука — не дубль");
+  Check(AudioSetup.Duplicates(srcDup, 2).Count == 0, "дорожка 1 не записывается — дубля в файле нет");
   Console.WriteLine(failures == 0 ? "ИТОГ: все проверки пройдены" : "ИТОГ: провалов " + failures);
   return failures == 0 ? 0 : 1;
  }
