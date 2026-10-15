@@ -12,7 +12,7 @@ if (-not (Test-Path $csc)) { throw '.NET Framework 4.x compiler (csc.exe) not fo
 Push-Location $PSScriptRoot
 try {
  $bin = 'bin'; New-Item -ItemType Directory -Force $bin, "$bin\tests" | Out-Null
- $sys = 'System.dll','System.Core.dll','System.Web.Extensions.dll','System.Xaml.dll','System.Windows.Forms.dll','System.Drawing.dll' | ForEach-Object { '/reference:' + (Join-Path $fw $_) }
+ $sys = 'System.dll','System.Core.dll','System.Web.Extensions.dll','System.Xaml.dll','System.Windows.Forms.dll','System.Drawing.dll','System.IO.Compression.dll','System.IO.Compression.FileSystem.dll' | ForEach-Object { '/reference:' + (Join-Path $fw $_) }
  $wpf = 'WindowsBase.dll','PresentationCore.dll','PresentationFramework.dll' | ForEach-Object { '/reference:' + (Join-Path $fw "WPF\$_") }
  function Compile([string]$out, [string]$target, [string[]]$options, [string[]]$sources) {
   & $csc /nologo /utf8output /optimize+ /platform:x64 "/target:$target" "/out:$out" @options @sources
@@ -29,7 +29,7 @@ try {
  $common = "$ov\ObsConfig.cs", "$ov\ObsClient.cs"
  $vb = "/reference:$fw\Microsoft.VisualBasic.dll"
  Compile "$bin\ReplayOverlay.exe" winexe (@("/win32manifest:$ov\app.manifest", '/win32icon:assets\icon.ico', "/resource:$ov\Overlay.xaml,Overlay.xaml", $vb) + $sys + $wpf) `
-  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Diagnostics.cs", "$ov\Games.cs", "$ov\Audio.cs", "$ov\Clips.cs", "$ov\Indicator.cs", "$ov\Chrome.cs", "$ov\Encoders.cs", "$ov\Storage.cs", "$ov\Viewer.cs", "$ov\Picker.cs", "$ov\Gallery.cs", "$ov\Shell.cs", "$ov\VideoSettings.cs", "$ov\Program.cs"))
+  (@("$ov\AssemblyInfo.cs") + $common + @("$ov\Privacy.cs", "$ov\Hotkeys.cs", "$ov\Diagnostics.cs", "$ov\Games.cs", "$ov\Audio.cs", "$ov\Clips.cs", "$ov\Indicator.cs", "$ov\Chrome.cs", "$ov\Encoders.cs", "$ov\Storage.cs", "$ov\Viewer.cs", "$ov\Picker.cs", "$ov\Gallery.cs", "$ov\Shell.cs", "$ov\VideoSettings.cs", "$ov\SystemSettings.cs", "$ov\Program.cs"))
  Compile "$bin\ReplayOBS-Setup.exe" winexe (@('/win32manifest:src\Setup\setup.manifest', '/win32icon:assets\icon.ico', '/resource:src\Setup\Setup.xaml,Setup.xaml', '/resource:assets\icon.png,icon.png', "/resource:$bin\ReplayOverlay.exe,payload.ReplayOverlay.exe") + $sys + $wpf) `
   (@('src\Setup\AssemblyInfo.cs', 'src\Setup\Setup.cs') + $common)
 
