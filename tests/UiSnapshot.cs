@@ -27,6 +27,12 @@ static class UiSnapshot {
     var rtb=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);rtb.Render(root);
     var enc=new PngBitmapEncoder();enc.Frames.Add(BitmapFrame.Create(rtb));string file=Path.Combine(outDir,"ui-"+page+".png");using(var f=File.Create(file))enc.Save(f);
     Console.WriteLine("снимок: "+file);}
+   // Окно выбора приложения с настоящим списком запущенных программ.
+   var open=typeof(Overlay).GetMethod("OpenPicker",BindingFlags.NonPublic|BindingFlags.Instance);
+   open.Invoke(ov,new object[]{"Не записывать приложение","Пока окно этого приложения видно на экране, в записи будет только игра.",new System.Collections.Generic.List<string>(),new Action<string>(n=>Console.WriteLine("выбрано: "+n))});
+   for(int i=0;i<60&&((System.Windows.Controls.StackPanel)w.FindName("PickerList")).Children.Count==0;i++)Pump(100);
+   Console.WriteLine("программ в списке: "+((System.Windows.Controls.StackPanel)w.FindName("PickerList")).Children.Count);
+   {var root=(FrameworkElement)w.Content;root.UpdateLayout();var rtb=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);rtb.Render(root);var enc=new PngBitmapEncoder();enc.Frames.Add(BitmapFrame.Create(rtb));using(var f=File.Create(Path.Combine(outDir,"ui-picker.png")))enc.Save(f);}
    ov.Exit();return 0;}
   catch(Exception ex){Console.WriteLine("ОШИБКА: "+ex);return 1;}
   finally{try{File.Delete(prefs);}catch(Exception){}}

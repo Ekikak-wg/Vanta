@@ -71,14 +71,14 @@ namespace ReplayOverlay {
    window.SourceInitialized+=(s,e)=>InitWindow();
    window.Closing+=(s,e)=>{if(!exiting){e.Cancel=true;Hide();}};
    window.IsVisibleChanged+=(s,e)=>{if(window.IsVisible){clock.Start();Run(Refresh);if(ClipsOpen)Run(LoadClips);if(currentPage=="record")Run(RenderMixer);ShowKeysPanel();UpdateDisk();}else{clock.Stop();PausePlayer();if(keysPanel!=null)keysPanel.Hide();if(capturing!=null){capturing=null;ConfigureHotkeys();}}};
-   window.PreviewKeyDown+=(s,e)=>{if(capturing!=null){CaptureKey(e);return;}if(e.Key==Key.Escape){Hide();e.Handled=true;}};
+   window.PreviewKeyDown+=(s,e)=>{if(capturing!=null){CaptureKey(e);return;}if(e.Key==Key.Escape&&PickerOpen){ClosePicker();e.Handled=true;return;}if(e.Key==Key.Escape){Hide();e.Handled=true;}};
    window.Deactivated+=(s,e)=>{if(!preview&&!dialogOpen&&!exiting&&window.IsVisible){previousForeground=IntPtr.Zero;window.Hide();}};
    C<Button>("CloseButton").Click+=(s,e)=>Hide();
    C<Button>("FolderPickButton").Click+=(s,e)=>Run(PickFolder);
    C<Button>("ModeGameButton").Click+=(s,e)=>Run(()=>SetMode(false));
    C<Button>("ModeDesktopButton").Click+=(s,e)=>Run(()=>SetMode(true));
    C<ComboBox>("AppBox").DropDownOpened+=(s,e)=>FillApps();
-   C<Button>("AddAppButton").Click+=(s,e)=>{var item=C<ComboBox>("AppBox").SelectedItem as ComboBoxItem;if(item==null){Message("Выберите запущенное приложение");return;}excluded.Add(Convert.ToString(item.Tag));ExclusionsChanged();Message(item.Tag+".exe не будет попадать в запись в режиме «Игра и экран»");};
+   C<Button>("AddAppButton").Click+=(s,e)=>OpenPicker("Не записывать приложение","Пока окно этого приложения видно на экране, в записи будет только игра.",excluded,n=>{excluded.Add(n);ExclusionsChanged();Message(n+".exe не будет попадать в запись в режиме «Игра и экран»");});
    privacy.Changed+=names=>ApplyPrivacy();
    C<Button>("RecordButton").Click+=(s,e)=>Run(async()=>{EnsureReady();await obs.Call("ToggleRecord");await Refresh();});
    C<Button>("SaveButton").Click+=(s,e)=>Run(SaveReplay);
@@ -86,7 +86,7 @@ namespace ReplayOverlay {
    C<Button>("LaunchButton").Click+=(s,e)=>Run(LaunchObs);
    C<Button>("ApplyButton").Click+=(s,e)=>Run(Apply);
    C<ComboBox>("SceneBox").SelectionChanged+=(s,e)=>{if(!loading&&C<ComboBox>("SceneBox").SelectedItem!=null)Run(async()=>{EnsureReady();await obs.Call("SetCurrentProgramScene",Json.D("sceneName",Convert.ToString(C<ComboBox>("SceneBox").SelectedItem)));});};
-   statsTimer.Tick+=(s,e)=>PollStats();BindBackgroundOptions();BindGames();BindAudio();BindPrivacy();BindClips();BindIndicator();BindShell();BindVideo();clock.Interval=TimeSpan.FromSeconds(1);clock.Tick+=(s,e)=>{if(record)C<TextBlock>("RecordState").Text=(DateTime.Now-recordStart).ToString(@"hh\:mm\:ss");};
+   statsTimer.Tick+=(s,e)=>PollStats();BindBackgroundOptions();BindGames();BindAudio();BindPrivacy();BindClips();BindIndicator();BindShell();BindVideo();BindPicker();clock.Interval=TimeSpan.FromSeconds(1);clock.Tick+=(s,e)=>{if(record)C<TextBlock>("RecordState").Text=(DateTime.Now-recordStart).ToString(@"hh\:mm\:ss");};
    tray=new WF.NotifyIcon{Icon=AppIcon(),Visible=true,Text="Replay Overlay — OBS"};
    var menu=new WF.ContextMenuStrip();menu.Items.Add("Открыть меню",null,(s,e)=>Show());menu.Items.Add("Сохранить повтор",null,(s,e)=>Run(SaveReplay));menu.Items.Add("Сделать скриншот",null,(s,e)=>Run(TakeScreenshot));menu.Items.Add("Галерея",null,(s,e)=>{Show();Ui(OpenClips);});menu.Items.Add("Открыть OBS",null,(s,e)=>Run(LaunchObs));menu.Items.Add("Открыть журнал",null,(s,e)=>OpenLog());menu.Items.Add(new WF.ToolStripSeparator());menu.Items.Add("Выйти из оверлея",null,(s,e)=>Exit());tray.ContextMenuStrip=menu;tray.DoubleClick+=(s,e)=>Show();
    obs.ConnectionChanged+=connected=>Ui(()=>{C<TextBlock>("ConnectionLabel").Text=connected?"OBS подключён":"Нет связи с OBS";C<Ellipse>("ConnectionDot").Fill=Brush(connected?"#8DCC38":"#D6A45B");UpdateControls();privacy.Enabled=connected&&(excluded.Count>0||hideNotifications);OnConnection(connected);if(connected){sceneItems.Clear();Run(RefreshWhenReady);}});
@@ -236,7 +236,8 @@ namespace ReplayOverlay {
   void RenderExcluded(){Run(RenderPrivacyWarnings);var list=C<StackPanel>("ExcludedList");list.Children.Clear();if(excluded.Count==0){list.Children.Add(new TextBlock{Text="Список пуст",Foreground=Brush("#7F8A96"),FontSize=12,Margin=new Thickness(0,0,0,4)});return;}
    foreach(string name in excluded.OrderBy(x=>x,StringComparer.OrdinalIgnoreCase)){var row=new Grid{Margin=new Thickness(0,0,0,6)};row.ColumnDefinitions.Add(new ColumnDefinition());row.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});row.Children.Add(new TextBlock{Text=name+".exe",FontSize=13,Foreground=Brush("#E6EBDD"),VerticalAlignment=VerticalAlignment.Center,TextTrimming=TextTrimming.CharacterEllipsis});var remove=new Button{Content="Убрать",Padding=new Thickness(10,5,10,5),FontSize=11,ToolTip="Снова записывать "+name+".exe"};Grid.SetColumn(remove,1);string n=name;remove.Click+=(s,e)=>{excluded.Remove(n);ExclusionsChanged();};row.Children.Add(remove);list.Children.Add(row);}}
   void FillApps(){FillAppBox(C<ComboBox>("AppBox"),excluded);}
-  void FillAppBox(ComboBox box,ICollection<string> skip){var current=box.SelectedItem as ComboBoxItem;string keep=current==null?null:Convert.ToString(current.Tag);box.Items.Clear();
+  void FillAppBox(ComboBox box,ICollection<string> skip){if(box.Visibility!=Visibility.Visible)return; // списки заменены окном выбора
+   var current=box.SelectedItem as ComboBoxItem;string keep=current==null?null:Convert.ToString(current.Tag);box.Items.Clear();
    foreach(var app in PrivacyWatcher.RunningApps()){if(skip.Contains(app.Key))continue;string title=app.Value.Length>28?app.Value.Substring(0,27)+"…":app.Value;var item=new ComboBoxItem{Content=app.Key+".exe — "+title,Tag=app.Key,ToolTip=app.Value};box.Items.Add(item);if(app.Key==keep)box.SelectedItem=item;}
    if(box.SelectedItem==null&&box.Items.Count>0)box.SelectedIndex=0;}
   // Пока окно исключённого приложения видно, захват монитора в текущей сцене выключается; затем включается обратно.
@@ -309,8 +310,8 @@ namespace ReplayOverlay {
    action.SelectionChanged+=(s,e)=>{var it=action.SelectedItem as ComboBoxItem;if(it!=null){gameAction=Convert.ToString(it.Tag);SavePrefs();}};
    C<ComboBox>("GameAppBox").DropDownOpened+=(s,e)=>FillAppBox(C<ComboBox>("GameAppBox"),myGames);
    C<ComboBox>("NotGameAppBox").DropDownOpened+=(s,e)=>FillAppBox(C<ComboBox>("NotGameAppBox"),notGames);
-   C<Button>("AddGameButton").Click+=(s,e)=>{var it=C<ComboBox>("GameAppBox").SelectedItem as ComboBoxItem;if(it==null){Message("Выберите запущенную игру");return;}string n=Convert.ToString(it.Tag);myGames.Add(n);notGames.Remove(n);GamesChanged();Message(n+".exe — в «Моих играх»");};
-   C<Button>("AddNotGameButton").Click+=(s,e)=>{var it=C<ComboBox>("NotGameAppBox").SelectedItem as ComboBoxItem;if(it==null){Message("Выберите программу");return;}string n=Convert.ToString(it.Tag);notGames.Add(n);myGames.Remove(n);GamesChanged();Message(n+".exe больше не считается игрой");};
+   C<Button>("AddGameButton").Click+=(s,e)=>OpenPicker("Добавить игру","Меню будет считать эту программу игрой и захватывать её окно.",myGames,n=>{myGames.Add(n);notGames.Remove(n);GamesChanged();Message(n+".exe — в «Моих играх»");});
+   C<Button>("AddNotGameButton").Click+=(s,e)=>OpenPicker("Не считать игрой","Программа не будет определяться как игра, даже если она на весь экран.",notGames,n=>{notGames.Add(n);myGames.Remove(n);GamesChanged();Message(n+".exe больше не считается игрой");});
    gamesWatch.Started+=OnGameStarted;gamesWatch.Stopped+=OnGameStopped;
    gamesWatch.SetLists(myGames,notGames);} // включается в InitWindow, когда меню собрано полностью
   void GamesChanged(){gamesWatch.SetLists(myGames,notGames);SavePrefs();RenderGames();FillAppBox(C<ComboBox>("GameAppBox"),myGames);FillAppBox(C<ComboBox>("NotGameAppBox"),notGames);gamesWatch.Recheck();}
@@ -370,7 +371,7 @@ namespace ReplayOverlay {
    mode.SelectionChanged+=(s,e)=>{var it=mode.SelectedItem as ComboBoxItem;if(it==null)return;string m=Convert.ToString(it.Tag);if(m!=audioMode)Run(()=>SetAudioMode(m));};
    C<Button>("SplitTracksButton").Click+=(s,e)=>Run(SplitTracks);
    C<ComboBox>("AudioAppBox").DropDownOpened+=(s,e)=>FillAudioApps();
-   C<Button>("AddAudioAppButton").Click+=(s,e)=>{var it=C<ComboBox>("AudioAppBox").SelectedItem as ComboBoxItem;if(it==null){Message("Выберите программу");return;}string n=Convert.ToString(it.Tag);var l=audioMode=="except"?audioExcept:audioOnly;if(!l.Contains(n))l.Add(n);SavePrefs();RenderAudioApps();Run(ReapplyAudio);};
+   C<Button>("AddAudioAppButton").Click+=(s,e)=>{var l=audioMode=="except"?audioExcept:audioOnly;OpenPicker(audioMode=="except"?"Не записывать звук приложения":"Записывать звук приложения",audioMode=="except"?"Звук этой программы не попадёт в запись.":"В запись попадёт звук только выбранных программ (и игры, Discord, микрофона).",l,n=>{if(!l.Contains(n))l.Add(n);SavePrefs();RenderAudioApps();Run(ReapplyAudio);});};
    C<Button>("AddDeviceButton").Click+=(s,e)=>Run(AddDevice);
    sessionTimer.Tick+=(s,e)=>WatchSessions();volumeTimer.Tick+=(s,e)=>FlushVolumes();}
   void RenderAudio(){RenderAudioApps();FillAudioApps();Run(RenderMixer);Run(FillDevices);}
@@ -420,7 +421,7 @@ namespace ReplayOverlay {
   async Task AddDevice(){EnsureReady();var it=C<ComboBox>("DeviceBox").SelectedItem as ComboBoxItem;if(it==null)throw new InvalidOperationException("Выберите устройство");
    var parts=Convert.ToString(it.Tag).Split(new[]{'|'},3);string name=await audio.AddDevice(parts[0]=="in",parts[1],parts[2],CaptureScenes());
    SavePrefs();Log.Write("Звук: добавлено «"+name+"»");Message("Добавлено: "+name);await RenderMixer();}
-  void FillAudioApps(){var box=C<ComboBox>("AudioAppBox");var listed=audioMode=="except"?audioExcept:audioOnly;var keep=box.SelectedItem as ComboBoxItem;string k=keep==null?null:Convert.ToString(keep.Tag);box.Items.Clear();
+  void FillAudioApps(){var box=C<ComboBox>("AudioAppBox");if(box.Visibility!=Visibility.Visible)return;var listed=audioMode=="except"?audioExcept:audioOnly;var keep=box.SelectedItem as ComboBoxItem;string k=keep==null?null:Convert.ToString(keep.Tag);box.Items.Clear();
    var sound=AudioSessions.Active();var all=new SortedDictionary<string,string>(StringComparer.OrdinalIgnoreCase);foreach(var kv in PrivacyWatcher.RunningApps())all[kv.Key]=kv.Value;foreach(var kv in sound)if(!all.ContainsKey(kv.Key))all[kv.Key]="";
    foreach(var kv in all){if(listed.Contains(kv.Key,StringComparer.OrdinalIgnoreCase))continue;var item=new ComboBoxItem{Content=kv.Key+".exe"+(sound.ContainsKey(kv.Key)?" — звук":"")+(kv.Value.Length>0?" · "+(kv.Value.Length>20?kv.Value.Substring(0,19)+"…":kv.Value):""),Tag=kv.Key};box.Items.Add(item);if(kv.Key==k)box.SelectedItem=item;}
    if(box.SelectedItem==null&&box.Items.Count>0)box.SelectedIndex=0;}

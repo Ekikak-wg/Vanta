@@ -407,8 +407,8 @@
          <TextBlock x:Name="AudioAppsTitle" Text="" Style="{StaticResource Label}" Margin="0,0,0,6"/>
          <StackPanel x:Name="AudioAppList"/>
          <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-          <ComboBox x:Name="AudioAppBox" ToolTip="Запущенные программы; «звук» — сейчас выводит звук"/>
-          <Button x:Name="AddAudioAppButton" Grid.Column="2" Content="+ Добавить" Padding="12,7" FontSize="12" Margin="0,6,0,0"/>
+          <ComboBox x:Name="AudioAppBox" Visibility="Collapsed"/>
+          <Button x:Name="AddAudioAppButton" Grid.ColumnSpan="3" HorizontalAlignment="Left" Content="+ Добавить приложение" Padding="12,7" FontSize="12" Margin="0,6,0,0" ToolTip="Выбрать из запущенных программ или указать exe-файл"/>
          </Grid>
         </StackPanel>
        </StackPanel>
@@ -429,14 +429,14 @@
         <TextBlock Text="Мои игры" Style="{StaticResource Label}" Margin="0,0,0,6"/>
         <StackPanel x:Name="GameList"/>
         <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-         <ComboBox x:Name="GameAppBox" Margin="0" ToolTip="Запущенные программы"/>
-         <Button x:Name="AddGameButton" Grid.Column="2" Content="+ Добавить" Padding="12,7" FontSize="12"/>
+         <ComboBox x:Name="GameAppBox" Visibility="Collapsed"/>
+         <Button x:Name="AddGameButton" Grid.ColumnSpan="3" HorizontalAlignment="Left" Content="+ Добавить игру" Padding="12,7" FontSize="12" ToolTip="Выбрать из запущенных программ или указать exe-файл"/>
         </Grid>
         <TextBlock Text="Не считать играми" Style="{StaticResource Label}" Margin="0,14,0,6"/>
         <StackPanel x:Name="NotGameList"/>
         <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-         <ComboBox x:Name="NotGameAppBox" Margin="0" ToolTip="Запущенные программы"/>
-         <Button x:Name="AddNotGameButton" Grid.Column="2" Content="+ Добавить" Padding="12,7" FontSize="12"/>
+         <ComboBox x:Name="NotGameAppBox" Visibility="Collapsed"/>
+         <Button x:Name="AddNotGameButton" Grid.ColumnSpan="3" HorizontalAlignment="Left" Content="+ Добавить программу" Padding="12,7" FontSize="12" ToolTip="Выбрать из запущенных программ или указать exe-файл"/>
         </Grid>
         <TextBlock Text="Игрой считается программа из «Моих игр», из папки Steam, Epic, Riot, GOG, Ubisoft, EA или Xbox, а также полноэкранное 3D-окно. Браузеры, плееры, мессенджеры и лаунчеры игрой не считаются. Alt+Tab игру не «отпускает»: она активна, пока запущена." Style="{StaticResource Hint}" Margin="0,8,0,0"/>
        </StackPanel>
@@ -451,8 +451,8 @@
         <TextBlock Text="В режиме «Игра и экран», пока окно такого приложения видно на мониторе (в том числе в Alt+Tab), захват экрана выключается — в записи и повторе остаётся только игра." Style="{StaticResource Hint}" Margin="0,4,0,10"/>
         <StackPanel x:Name="ExcludedList"/>
         <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-         <ComboBox x:Name="AppBox" Margin="0" ToolTip="Запущенные приложения с окнами"/>
-         <Button x:Name="AddAppButton" Grid.Column="2" Content="+ Добавить" Padding="12,7" FontSize="12"/>
+         <ComboBox x:Name="AppBox" Visibility="Collapsed"/>
+         <Button x:Name="AddAppButton" Grid.ColumnSpan="3" HorizontalAlignment="Left" Content="+ Добавить приложение" Padding="12,7" FontSize="12" ToolTip="Выбрать из запущенных программ или указать exe-файл"/>
         </Grid>
         <CheckBox x:Name="NotifyBox" Content="Скрывать всплывающие уведомления Windows" Margin="0,12,0,8" ToolTip="Уведомления рисует сама Windows, а не приложение — исключение приложения их не скрывает. На новых сборках Windows 11 (26200) не срабатывает — включайте «Не беспокоить»"/>
         <CheckBox x:Name="StrictBox" Content="Строгая защита: экран с задержкой 100 мс — ни одного кадра скрытых окон"/>
@@ -552,6 +552,28 @@
      <TextBlock x:Name="DiskFree" Grid.Column="3" Text="" FontSize="12" Foreground="#C4CAD2" Margin="10,0,0,0" VerticalAlignment="Center"/>
     </Grid>
    </StackPanel>
+   <!-- Окно выбора приложения: поверх содержимого вкладки -->
+   <Border x:Name="PickerLayer" Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Background="#E60D0F13" Visibility="Collapsed" Padding="10,4,10,12">
+    <Border Background="#1A1D23" BorderBrush="#343A43" BorderThickness="1" CornerRadius="12" Padding="14">
+     <DockPanel>
+      <StackPanel DockPanel.Dock="Top">
+       <Grid><TextBlock x:Name="PickerTitle" Text="" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,36,0" TextWrapping="Wrap"/>
+        <Button x:Name="PickerCancel" HorizontalAlignment="Right" VerticalAlignment="Top" Width="30" Height="30" Padding="0" Background="Transparent" ToolTip="Отмена (Esc)"><TextBlock Text="&#xE8BB;" Style="{StaticResource Glyph}" FontSize="12"/></Button></Grid>
+       <TextBlock x:Name="PickerHint" Text="" Style="{StaticResource Hint}" Margin="0,4,0,10"/>
+       <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <TextBlock Text="&#xE721;" Style="{StaticResource Glyph}" FontSize="13" Foreground="#9CA3AF" Margin="0,0,8,0"/>
+        <TextBox x:Name="PickerSearch" Grid.Column="1" Margin="0" ToolTip="Поиск по названию или имени exe"/>
+        <Button x:Name="PickerRefresh" Grid.Column="3" Width="34" Height="34" Padding="0" ToolTip="Обновить список"><TextBlock Text="&#xE72C;" Style="{StaticResource Glyph}" FontSize="13"/></Button>
+       </Grid>
+       <TextBlock x:Name="PickerStatus" Text="" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
+      </StackPanel>
+      <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+       <Button x:Name="PickerBrowse" Content="Указать exe-файл…" HorizontalAlignment="Left" Padding="12,7" FontSize="12" ToolTip="Если программа сейчас не запущена"/>
+      </StackPanel>
+      <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,6,0,0"><StackPanel x:Name="PickerList"/></ScrollViewer>
+     </DockPanel>
+    </Border>
+   </Border>
   </Grid>
  </Border>
 </Window>
