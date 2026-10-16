@@ -29,8 +29,8 @@ namespace ReplayOverlay {
    var info=new StringBuilder();
    info.AppendLine("Replay OBS "+Assembly.GetExecutingAssembly().GetName().Version.ToString(3));
    info.AppendLine("Windows "+Convert.ToString(Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion","CurrentBuildNumber","?"))+(Environment.Is64BitOperatingSystem?" x64":""));
-   info.AppendLine("OBS: "+(obs.Connected?"подключён":"не подключён"));
-   if(obs.Connected){try{var v=await obs.Call("GetVersion");info.AppendLine("OBS "+Json.Str(v,"obsVersion")+", obs-websocket "+Json.Str(v,"obsWebSocketVersion"));}catch(Exception){}}
+   info.AppendLine("OBS: "+(engine.Connected?"подключён":"не подключён"));
+   if(engine.Connected){try{info.AppendLine(await engine.Version());}catch(Exception){}}
    info.AppendLine("Профиль: "+profileName+" · режим вывода: "+outputMode+" · кодировщик: "+recEncoderId);
    info.AppendLine("Кодировщики: "+string.Join(", ",encoders.Select(x=>x.Id)));
    info.AppendLine("Размытие фона: "+(acrylic?"да":"нет")+" · сцена: "+currentScene);

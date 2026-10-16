@@ -24,12 +24,12 @@ namespace ReplayOverlay {
 
   // Есть ли плагин, включён ли отдельный повтор и идёт ли он.
   async Task RefreshSR(){
-   try{object raw;(await obs.Call("GetSourceFilterKindList")).TryGetValue("sourceFilterKinds",out raw);srAvailable=((raw as object[])??new object[0]).Any(k=>Convert.ToString(k)=="source_record_filter");}catch(Exception){srAvailable=false;}
+   try{object raw;(await engine.Call("GetSourceFilterKindList")).TryGetValue("sourceFilterKinds",out raw);srAvailable=((raw as object[])??new object[0]).Any(k=>Convert.ToString(k)=="source_record_filter");}catch(Exception){srAvailable=false;}
    if(srOn){
-    try{var f=await obs.Call("GetSourceFilter",Json.D("sourceName",SrScene,"filterName",SrFilter));srActive=Json.Bool(Json.Obj(f["filterSettings"]),"replay_buffer");}
+    try{var f=await engine.Call("GetSourceFilter",Json.D("sourceName",SrScene,"filterName",SrFilter));srActive=Json.Bool(Json.Obj(f["filterSettings"]),"replay_buffer");}
     catch(InvalidOperationException){srActive=false;Log.Write("Отдельный повтор: служебной сцены нет — включите его заново");}
     // Обычный буфер OBS при отдельном повторе не нужен — он только нагружал бы видеокарту.
-    if(replay){srSwitching=true;try{await obs.Call("StopReplayBuffer");await WaitBuffer(false);Log.Write("Обычный буфер OBS выключен: работает отдельный повтор");}catch(Exception){}finally{srSwitching=false;}}
+    if(replay){srSwitching=true;try{await engine.StopReplay();await WaitBuffer(false);Log.Write("Обычный буфер OBS выключен: работает отдельный повтор");}catch(Exception){}finally{srSwitching=false;}}
     await UpdateReplayNest();}
    var cb=C<ComboBox>("SrCodecBox");var keep=TagOf(cb,srEncoder);bool was=loading;loading=true;
    try{cb.Items.Clear();cb.Items.Add(new ComboBoxItem{Content="Как у записи",Tag=""});foreach(var e in encoders)cb.Items.Add(new ComboBoxItem{Content=e.VendorLabel+" · "+e.CodecLabel,Tag=e.Id});SelectTag(cb,srEncoder);if(cb.SelectedItem==null)cb.SelectedIndex=0;}finally{loading=was;}
@@ -58,20 +58,20 @@ namespace ReplayOverlay {
 
   async Task EnableSR(){
    EnsureReady();if(!srAvailable)throw new InvalidOperationException("Плагин Source Record не найден в OBS");ReadSrForm();
-   object raw;(await obs.Call("GetSceneList")).TryGetValue("scenes",out raw);
-   if(!((raw as object[])??new object[0]).Any(x=>Json.Str(Json.Obj(x),"sceneName")==SrScene))await obs.Call("CreateScene",Json.D("sceneName",SrScene));
+   object raw;(await engine.Call("GetSceneList")).TryGetValue("scenes",out raw);
+   if(!((raw as object[])??new object[0]).Any(x=>Json.Str(Json.Obj(x),"sceneName")==SrScene))await engine.Call("CreateScene",Json.D("sceneName",SrScene));
    srOn=true;await UpdateReplayNest();
-   bool exists=true;try{await obs.Call("GetSourceFilter",Json.D("sourceName",SrScene,"filterName",SrFilter));}catch(InvalidOperationException){exists=false;}
-   if(exists)await obs.Call("SetSourceFilterSettings",Json.D("sourceName",SrScene,"filterName",SrFilter,"filterSettings",SrSettings(true),"overlay",false));
-   else await obs.Call("CreateSourceFilter",Json.D("sourceName",SrScene,"filterName",SrFilter,"filterKind","source_record_filter","filterSettings",SrSettings(true)));
+   bool exists=true;try{await engine.Call("GetSourceFilter",Json.D("sourceName",SrScene,"filterName",SrFilter));}catch(InvalidOperationException){exists=false;}
+   if(exists)await engine.Call("SetSourceFilterSettings",Json.D("sourceName",SrScene,"filterName",SrFilter,"filterSettings",SrSettings(true),"overlay",false));
+   else await engine.Call("CreateSourceFilter",Json.D("sourceName",SrScene,"filterName",SrFilter,"filterKind","source_record_filter","filterSettings",SrSettings(true)));
    srActive=true;SavePrefs();Log.Write("Отдельный повтор включён (Source Record)");
    await RefreshSR();Message("Отдельный повтор включён: свои качество и звук");}
 
   async Task DisableSR(){
    EnsureReady();srOn=false;srActive=false;SavePrefs();
-   try{await obs.Call("RemoveScene",Json.D("sceneName",SrScene));}catch(InvalidOperationException){}
+   try{await engine.Call("RemoveScene",Json.D("sceneName",SrScene));}catch(InvalidOperationException){}
    sceneItems.Clear();Log.Write("Отдельный повтор выключен — снова обычный буфер OBS");
-   if(replayWanted&&replayAvailable&&!replay){try{await obs.Call("StartReplayBuffer");}catch(Exception ex){Log.Write("Буфер OBS не включился: "+ex.Message);}}
+   if(replayWanted&&replayAvailable&&!replay){try{await engine.StartReplay();}catch(Exception ex){Log.Write("Буфер OBS не включился: "+ex.Message);}}
    UpdateSrUi();await Refresh();Message("Повтор снова пишется с настройками записи");}
 
   // Применить: буфер плагина перезапускается — накопленная история сбрасывается.
@@ -79,31 +79,31 @@ namespace ReplayOverlay {
    EnsureReady();if(!srOn)return;if(fromForm)ReadSrForm();
    // Масштаб и частоту кадров плагин задаёт только новому кодировщику — фильтр пересоздаётся.
    var settings=SrSettings(srActive||fromForm);
-   try{await obs.Call("RemoveSourceFilter",Json.D("sourceName",SrScene,"filterName",SrFilter));}catch(InvalidOperationException){}
+   try{await engine.Call("RemoveSourceFilter",Json.D("sourceName",SrScene,"filterName",SrFilter));}catch(InvalidOperationException){}
    await Task.Delay(700);
-   await obs.Call("CreateSourceFilter",Json.D("sourceName",SrScene,"filterName",SrFilter,"filterKind","source_record_filter","filterSettings",settings));
+   await engine.Call("CreateSourceFilter",Json.D("sourceName",SrScene,"filterName",SrFilter,"filterKind","source_record_filter","filterSettings",settings));
    if(fromForm)srActive=true;SavePrefs();Log.Write("Отдельный повтор: "+(srEncoder.Length>0?srEncoder:"кодировщик записи")+" · "+srQuality+" · "+srScale+" · делитель FPS "+srFpsDiv+" · "+srFormat+" · звук "+srAudio);
    if(fromForm)Message("Настройки повтора применены · буфер запущен заново");}
 
   // Служебная сцена вкладывает ту сцену, что сейчас идёт в эфир или запись.
   async Task UpdateReplayNest(){
    if(!srOn||string.IsNullOrEmpty(currentScene)||currentScene==SrScene||currentScene==StrictPrivacy.CoverScene)return;
-   try{object raw;(await obs.Call("GetSceneItemList",Json.D("sceneName",SrScene))).TryGetValue("sceneItems",out raw);var items=((raw as object[])??new object[0]).Select(Json.Obj).ToList();
+   try{object raw;(await engine.Call("GetSceneItemList",Json.D("sceneName",SrScene))).TryGetValue("sceneItems",out raw);var items=((raw as object[])??new object[0]).Select(Json.Obj).ToList();
     if(items.Any(i=>Json.Str(i,"sourceName")==currentScene)&&items.Count==1)return;
-    await obs.Call("CreateSceneItem",Json.D("sceneName",SrScene,"sourceName",currentScene));
-    foreach(var i in items.Where(i=>Json.Str(i,"sourceName")!=currentScene))await obs.Call("RemoveSceneItem",Json.D("sceneName",SrScene,"sceneItemId",Json.Int(i,"sceneItemId")));}
+    await engine.Call("CreateSceneItem",Json.D("sceneName",SrScene,"sourceName",currentScene));
+    foreach(var i in items.Where(i=>Json.Str(i,"sourceName")!=currentScene))await engine.Call("RemoveSceneItem",Json.D("sceneName",SrScene,"sceneItemId",Json.Int(i,"sceneItemId")));}
    catch(Exception ex){Log.Write("Отдельный повтор: сцена не переключена — "+ex.Message);}}
 
   // Вкл/выкл и сохранение — для обычного буфера OBS или для отдельного повтора.
   async Task ToggleReplay(){
    EnsureReady();
-   if(!srOn){await obs.Call("ToggleReplayBuffer");await Refresh();return;}
-   bool on=!srActive;var r=await obs.Call("CallVendorRequest",Json.D("vendorName","source-record","requestType",on?"replay_buffer_start":"replay_buffer_stop","requestData",Json.D("source",SrScene,"filter",SrFilter)));
+   if(!srOn){await engine.ToggleReplay();await Refresh();return;}
+   bool on=!srActive;var r=await engine.Call("CallVendorRequest",Json.D("vendorName","source-record","requestType",on?"replay_buffer_start":"replay_buffer_stop","requestData",Json.D("source",SrScene,"filter",SrFilter)));
    if(!Json.Bool(Json.Obj(r.ContainsKey("responseData")?r["responseData"]:null),"success"))throw new InvalidOperationException("Source Record не "+(on?"включил":"выключил")+" повтор");
    srActive=on;replayWanted=on;SavePrefs();Log.Write("Отдельный повтор "+(on?"включён":"выключен"));UpdateControls();UpdateIndicator();}
   async Task SaveSR(){
    if(!srActive)throw new InvalidOperationException("Сначала включите мгновенный повтор");
-   var r=await obs.Call("CallVendorRequest",Json.D("vendorName","source-record","requestType","replay_buffer_save","requestData",Json.D("source",SrScene,"filter",SrFilter)));
+   var r=await engine.Call("CallVendorRequest",Json.D("vendorName","source-record","requestType","replay_buffer_save","requestData",Json.D("source",SrScene,"filter",SrFilter)));
    if(!Json.Bool(Json.Obj(r.ContainsKey("responseData")?r["responseData"]:null),"success"))throw new InvalidOperationException("Source Record не сохранил повтор");
    Message("Сохраняю повтор…");
    // Source Record 0.4.8 не присылает событие о сохранении — ждём сам файл: новый, с приставкой повторов, размер перестал расти.

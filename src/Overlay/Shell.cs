@@ -60,11 +60,11 @@ namespace ReplayOverlay {
 
   // Длительность буфера: OBS читает её при запуске буфера, поэтому буфер перезапускается.
   async Task ApplyDuration(){EnsureReady();int seconds=(int)C<Slider>("DurationSlider").Value;if(seconds==duration){Message("Длительность уже "+FormatDuration(seconds));return;}
-   bool resume=replayAvailable&&Json.Bool(await obs.Call("GetReplayBufferStatus"),"outputActive");busy=true;UpdateControls();
-   try{if(resume){await obs.Call("StopReplayBuffer");await WaitBuffer(false);}
-    await obs.Call("SetProfileParameter",Json.D("parameterCategory",OutputSection,"parameterName","RecRBTime","parameterValue",seconds.ToString()));
+   bool resume=replayAvailable&&await engine.ReplayActive()==true;busy=true;UpdateControls();
+   try{if(resume){await engine.StopReplay();await WaitBuffer(false);}
+    await engine.SetReplayDuration(seconds);
     if(srOn){duration=seconds;await ApplySR(false);} // отдельный повтор берёт длительность из фильтра
-    if(resume){await obs.Call("StartReplayBuffer");await WaitBuffer(true);}}
+    if(resume){await engine.StartReplay();await WaitBuffer(true);}}
    finally{busy=false;UpdateControls();}
    duration=seconds;Log.Write("Длительность повтора: "+FormatDuration(seconds));Message("Длительность повтора: "+FormatDuration(seconds)+(resume?" · буфер запущен заново":""));await Refresh();}
 
@@ -124,7 +124,7 @@ namespace ReplayOverlay {
    string kind=shotSource=="screen"?"monitor_capture":"game_capture";
    if(shotSource=="game"&&gamesWatch.Current==null)throw new InvalidOperationException("Игра не обнаружена — выберите «Весь экран» или «То, что записывается»");
    if(!string.IsNullOrEmpty(currentScene))foreach(object raw in await Items(currentScene)){var it=Json.Obj(raw);if(Json.Str(it,"inputKind")==kind)return Json.Str(it,"sourceName");}
-   object list;(await obs.Call("GetInputList",Json.D("inputKind",kind))).TryGetValue("inputs",out list);
+   object list;(await engine.Call("GetInputList",Json.D("inputKind",kind))).TryGetValue("inputs",out list);
    var first=((list as object[])??new object[0]).Select(o=>Json.Str(Json.Obj(o),"inputName")).FirstOrDefault();
    if(first==null)throw new InvalidOperationException(shotSource=="screen"?"В OBS нет захвата экрана":"В OBS нет захвата игры");
    return first;}
@@ -137,7 +137,7 @@ namespace ReplayOverlay {
    string name=(own?WindowShot.ExeOf(target):g!=null?g.Exe:"Screenshot")+"_"+DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");foreach(char c in Path.GetInvalidFileNameChars())name=name.Replace(c,'_');
    string file=Path.Combine(dir,name+(jpeg?".jpg":".png"));for(int i=2;File.Exists(file);i++)file=Path.Combine(dir,name+"_"+i+(jpeg?".jpg":".png"));
    if(own){int q=shotQuality;await Task.Run(()=>WindowShot.Save(target,file,jpeg,q));}
-   else{var req=Json.D("sourceName",source,"imageFormat",jpeg?"jpg":"png","imageFilePath",file);if(jpeg)req["imageCompressionQuality"]=shotQuality;await obs.Call("SaveSourceScreenshot",req);}
+   else await engine.SaveScreenshot(source,file,jpeg,shotQuality);
    if(!File.Exists(file))throw new IOException(own?"Снимок не сохранён":"OBS не сохранил снимок");
    Log.Write("Скриншот: "+Path.GetFileName(file)+" ("+source+")");Message("Скриншот: "+Path.GetFileName(file));
    Track(file);Notify("Скриншот сохранён",Path.GetFileName(file),ToastKind.Shot);ClipsChanged();}
