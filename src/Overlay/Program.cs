@@ -322,7 +322,7 @@ namespace ReplayOverlay {
    try{await engine.StartReplay();Log.Write("Буфер повтора включён автоматически");if(connections>1&&!window.IsVisible)Notify("Мгновенный повтор","Включён снова");}
    catch(Exception ex){Log.Write("Не удалось включить буфер: "+ex.Message);}}
   // Раз в 10 с: пропуски кадров, место на диске, отвечает ли OBS. Сводка в журнал — раз в 5 минут.
-  readonly SkipLedger skips=new SkipLedger();
+  readonly SkipLedger skips=new SkipLedger();readonly HashSet<string> engineWindowsSeen=new HashSet<string>();
   async void PollStats(){
    if(!engine.Connected)return;
    try{var cur=await engine.Stats();
@@ -330,7 +330,8 @@ namespace ReplayOverlay {
     var now=DateTime.Now;bool quiet=skips.Quiet(now);skips.Add(lastStats,cur,now);
     if(diagnostics&&!quiet)foreach(var p in Health.Problems(lastStats,cur))Warn(p.Key,p.Value); // при запуске и закрытии игры пропуски ожидаемы
     lastStats=cur;if(statsPolls++%30==0)Log.Write("Сводка: "+Health.Summary(cur)+" · пропуски в игре "+skips.InGame+", при запуске и закрытии игр "+skips.Transition+" (кодировщик "+cur.OutputSkipped+"/"+cur.OutputTotal+", отрисовка "+cur.RenderSkipped+"/"+cur.RenderTotal+") · меню "+(Environment.WorkingSet/1048576)+" МБ");
-    if(diagnostics)C<TextBlock>("HealthLabel").Text=Health.Summary(cur);}
+    if(diagnostics)C<TextBlock>("HealthLabel").Text=Health.Summary(cur);
+    foreach(string t in engine.VisibleWindows())if(engineWindowsSeen.Add(t)){Log.Write("Движок записи показал окно: «"+t+"»");Warn("engine-window","Движок записи показал окно «"+t+"». Если оно появилось само — пришлите его снимок: по тексту найдём причину.");}}
    catch(TimeoutException){statsTimeouts++;Log.Write("Движок записи не ответил на запрос статистики ("+statsTimeouts+")");if(statsTimeouts==2)Warn("hang",HangText);}
    catch(Exception){}}
   // Предупреждение: в журнал, в строку меню и уведомлением (не попадает в запись). Один вид — не чаще раза в 5 минут.
@@ -623,7 +624,7 @@ namespace ReplayOverlay {
    var waitArg=args.FirstOrDefault(a=>a.StartsWith("--wait-pid="));int waitPid;
    if(waitArg!=null&&int.TryParse(waitArg.Substring(11),out waitPid)){try{using(var old=Process.GetProcessById(waitPid))old.WaitForExit(15000);}catch(ArgumentException){}}
    bool fresh;using(var mutex=new Mutex(true,Names.Mutex,out fresh))using(var wake=new EventWaitHandle(false,EventResetMode.AutoReset,Names.Show))using(var quit=new EventWaitHandle(false,EventResetMode.AutoReset,Names.Exit)){
-   if(!fresh){if(!args.Contains("--hidden")){Native.AllowSetForegroundWindow(-1);wake.Set();}return;}var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};AppDomain.CurrentDomain.UnhandledException+=(s,e)=>Log.Write("Сбой меню: "+e.ExceptionObject);Overlay overlay=null;app.DispatcherUnhandledException+=(s,e)=>{e.Handled=true;MessageBox.Show("Ошибка оверлея: "+e.Exception.Message,"Replay Overlay");};try{Overlay.StartedFrom=args.FirstOrDefault(a=>a.StartsWith("--from="))??"";overlay=new Overlay(args.Contains("--preview"));var listener=new Thread(()=>{while(true){wake.WaitOne();overlay.Show();}}){IsBackground=true};listener.Start();var stopper=new Thread(()=>{quit.WaitOne();overlay.RequestExit();}){IsBackground=true};stopper.Start();if(args.Contains("--hidden")){overlay.StartHidden();app.Run();}else app.Run(overlay.Window);}catch(Exception ex){MessageBox.Show("Оверлей не запустился: "+ex.Message,"Replay Overlay");}finally{if(overlay!=null)overlay.Exit();}
+   if(!fresh){if(!args.Contains("--hidden")){Native.AllowSetForegroundWindow(-1);wake.Set();}return;}var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};AppDomain.CurrentDomain.UnhandledException+=(s,e)=>Log.Write("Сбой меню: "+e.ExceptionObject);Overlay overlay=null;app.DispatcherUnhandledException+=(s,e)=>{e.Handled=true;Log.Write("Ошибка меню: "+e.Exception);MessageBox.Show("Ошибка оверлея: "+e.Exception.Message,"Replay Overlay");};try{Overlay.StartedFrom=args.FirstOrDefault(a=>a.StartsWith("--from="))??"";overlay=new Overlay(args.Contains("--preview"));var listener=new Thread(()=>{while(true){wake.WaitOne();overlay.Show();}}){IsBackground=true};listener.Start();var stopper=new Thread(()=>{quit.WaitOne();overlay.RequestExit();}){IsBackground=true};stopper.Start();if(args.Contains("--hidden")){overlay.StartHidden();app.Run();}else app.Run(overlay.Window);}catch(Exception ex){MessageBox.Show("Оверлей не запустился: "+ex.Message,"Replay Overlay");}finally{if(overlay!=null)overlay.Exit();}
   }}
  }
 }

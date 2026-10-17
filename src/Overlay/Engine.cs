@@ -30,6 +30,7 @@ namespace ReplayOverlay {
   EngineHome Home{get;}
   bool IsRunning{get;}
   void Close();                                        // закрыть движок штатно
+  List<string> VisibleWindows();                       // заголовки видимых окон движка (у скрытого их быть не должно)
   bool IsProcess(string exeName);                      // это процесс движка (для списков программ и звука)
   bool LaunchHidden(bool startReplay,string reason);   // запустить без окна, если ещё не запущен
 
@@ -104,6 +105,12 @@ namespace ReplayOverlay {
   [System.Runtime.InteropServices.DllImport("user32.dll")] static extern int GetWindowThreadProcessId(IntPtr h,out int pid);
   [System.Runtime.InteropServices.DllImport("user32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)] static extern int GetWindowText(IntPtr h,System.Text.StringBuilder s,int n);
   // Главное окно OBS скрыто, поэтому Process.MainWindowHandle его не видит: ищем окно процесса с заголовком «OBS …».
+  [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  // Видимые окна процесса движка: у скрытого движка их быть не должно — появилось, значит OBS что-то спрашивает или сообщает.
+  public static List<string> VisibleTitles(int pid){
+   var list=new List<string>();
+   EnumWindows((h,l)=>{int id;GetWindowThreadProcessId(h,out id);if(id==pid&&IsWindowVisible(h)){var sb=new System.Text.StringBuilder(256);GetWindowText(h,sb,256);list.Add(sb.ToString());}return true;},IntPtr.Zero);
+   return list;}
   public static bool Close(int pid){
    IntPtr main=IntPtr.Zero;
    EnumWindows((h,l)=>{int id;GetWindowThreadProcessId(h,out id);if(id==pid){var sb=new System.Text.StringBuilder(256);GetWindowText(h,sb,256);if(sb.ToString().StartsWith("OBS ")){main=h;return false;}}return true;},IntPtr.Zero);
@@ -152,6 +159,7 @@ namespace ReplayOverlay {
   public bool IsRunning{get{return home.Running().Length>0;}}
   // Ждём до 5 с, чтобы следующий запуск меню не застал копию на выходе (тогда новая не запустится, а старая вот-вот закроется).
   // Копию с правами администратора закрывает задача «Close engine»: её окно не принимает WM_CLOSE от меню.
+  public List<string> VisibleWindows(){var l=new List<string>();foreach(var p in home.Running())l.AddRange(EngineWindows.VisibleTitles(p.Id));return l;}
   public const string NotInstalled="Движок записи не установлен — запустите установщик Replay OBS ещё раз";
   public void Close(){foreach(var p in home.Running()){try{
     bool asked=EngineWindows.Close(p.Id);
