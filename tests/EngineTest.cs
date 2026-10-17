@@ -124,6 +124,8 @@ static class EngineTest {
    var gs=srcs.First(x=>Json.Str(x,"id")=="game_capture");Check(!Json.Bool(Json.Obj(gs["settings"]),"capture_audio"),"захват игры без своего звука (нет двойного звука)");
    var item=Json.Obj(((object[])Json.Obj(srcs.First(x=>Json.Str(x,"name")==EngineSetup.GameScene)["settings"])["items"])[0]);
    Check(Json.Str(item,"source_uuid")==Json.Str(gs,"uuid")&&Json.Int(item,"bounds_type")==2&&Convert.ToDouble(Json.Obj(item["bounds"])["x"])==2560,"игра вписана в кадр 2560×1440");
+   var screenItems=((object[])Json.Obj(srcs.First(x=>Json.Str(x,"name")==EngineSetup.ScreenScene)["settings"])["items"]).Select(Json.Obj).ToList();
+   Check(screenItems.Count==2&&Json.Str(screenItems[0],"name")==EngineSetup.GameSource&&Json.Str(screenItems[1],"name")==EngineSetup.ScreenSource&&Json.Int(screenItems[1],"id")==2,"«Игра и экран»: игра снизу, экран сверху");
   }
   catch(Exception ex){Check(false,"исключение: "+ex);}
   Console.WriteLine(failures==0?"ИТОГ: все проверки пройдены":"ИТОГ: провалов "+failures);

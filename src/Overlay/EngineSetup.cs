@@ -53,7 +53,9 @@ namespace ReplayOverlay {
   public static Dictionary<string,object> Collection(int width,int height){
    var game=Source(GameSource,"game_capture",Json.D("capture_mode","any_fullscreen","capture_audio",false,"capture_cursor",true,"anti_cheat_hook",true,"capture_overlays",false,"limit_framerate",false));
    var screen=Source(ScreenSource,"monitor_capture",Json.D("capture_cursor",true,"monitor_id",PrimaryMonitorId()));
-   var gameScene=Scene(GameScene,width,height,game);var screenScene=Scene(ScreenScene,width,height,screen);
+   // В «Игра и экран» захват игры лежит под захватом экрана: его не видно, но он подключён к игре — работает снимок игры,
+   // а когда меню прячет экран (видна программа из исключений), в записи остаётся игра.
+   var gameScene=Scene(GameScene,width,height,game);var screenScene=Scene(ScreenScene,width,height,game,screen);
    return Json.D("name",Profile,"current_scene",GameScene,"current_program_scene",GameScene,
     "scene_order",new object[]{Json.D("name",GameScene),Json.D("name",ScreenScene)},
     "DesktopAudioDevice1",Source("Звук рабочего стола","wasapi_output_capture",Json.D("device_id","default")),
@@ -61,11 +63,11 @@ namespace ReplayOverlay {
     "sources",new object[]{game,screen,gameScene,screenScene},"groups",new object[0],"transition_duration",300);}
   static Dictionary<string,object> Source(string name,string kind,Dictionary<string,object> settings){
    return Json.D("name",name,"uuid",Guid.NewGuid().ToString(),"id",kind,"versioned_id",kind,"settings",settings,"mixers",63,"sync",0,"flags",0,"volume",1.0,"balance",0.5,"enabled",true,"muted",false,"monitoring_type",0);}
-  // Сцена с одним источником, вписанным в кадр целиком (с сохранением пропорций).
-  static Dictionary<string,object> Scene(string name,int width,int height,Dictionary<string,object> source){
-   var item=Json.D("name",source["name"],"source_uuid",source["uuid"],"visible",true,"locked",false,"rot",0.0,"align",5,"bounds_type",2,"bounds_align",0,
-    "pos",Json.D("x",0.0,"y",0.0),"scale",Json.D("x",1.0,"y",1.0),"bounds",Json.D("x",(double)width,"y",(double)height),"id",1);
-   var s=Source(name,"scene",Json.D("id_counter",1,"custom_size",false,"items",new object[]{item}));return s;}
+  // Сцена из источников (первый — нижний), каждый вписан в кадр целиком с сохранением пропорций.
+  static Dictionary<string,object> Scene(string name,int width,int height,params Dictionary<string,object>[] sources){
+   var items=sources.Select((source,i)=>(object)Json.D("name",source["name"],"source_uuid",source["uuid"],"visible",true,"locked",false,"rot",0.0,"align",5,"bounds_type",2,"bounds_align",0,
+    "pos",Json.D("x",0.0,"y",0.0),"scale",Json.D("x",1.0,"y",1.0),"bounds",Json.D("x",(double)width,"y",(double)height),"id",i+1)).ToArray();
+   return Source(name,"scene",Json.D("id_counter",items.Length,"custom_size",false,"items",items));}
 
   // Профиль: расширенный вывод, MKV, одна дорожка, буфер повтора на 5 минут, разрешение экрана, 60 к/с.
   public static string ProfileIni(string folder,string encoder,int width,int height){

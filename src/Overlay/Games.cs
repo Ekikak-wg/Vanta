@@ -110,19 +110,34 @@ namespace ReplayOverlay {
   void Check() {
    if(!enabled)return;
    try {
-    IntPtr h=GetForegroundWindow(); if(h==IntPtr.Zero||!IsWindowVisible(h)||IsIconic(h))return;
-    uint pid; GetWindowThreadProcessId(h,out pid); if(pid==self||pid==0)return;
-    if(Current!=null&&Current.Pid==pid){if(Current.Hwnd!=h&&Covers(h))Current.Hwnd=h;return;}
-    var f=Facts(h,pid); string reason=GameRules.Classify(f,games,notGames); if(reason==null)return;
-    var t=new StringBuilder(512); GetWindowText(h,t,512); var c=new StringBuilder(256); GetClassName(h,c,256);
-    IntPtr ph=OpenProcess(0x1000|0x00100000,false,pid); // QUERY_LIMITED_INFORMATION | SYNCHRONIZE
-    if(ph==IntPtr.Zero)return;
-    if(gameHandle!=IntPtr.Zero)CloseHandle(gameHandle); gameHandle=ph;
-    Current=new GameInfo{Pid=(int)pid,Exe=f.Exe,FileName=System.IO.Path.GetFileName(f.Path),Path=f.Path,Title=t.ToString(),Class=c.ToString(),Hwnd=h,Reason=reason,Started=DateTime.Now};
-    if(Started!=null)Started(Current);
+    IntPtr h=GetForegroundWindow();
+    if(h!=IntPtr.Zero&&IsWindowVisible(h)&&!IsIconic(h)){
+     uint pid; GetWindowThreadProcessId(h,out pid);
+     if(pid!=self&&pid!=0){if(Current!=null&&Current.Pid==pid){if(Current.Hwnd!=h&&Covers(h))Current.Hwnd=h;return;}if(Adopt(h,pid))return;}}
+    if(Current==null)Scan();
    } catch { }
   }
-  void CheckAlive(){if(Current==null||gameHandle==IntPtr.Zero)return;uint code;if(GetExitCodeProcess(gameHandle,out code)&&code==259)return;End();} // 259 = STILL_ACTIVE
+  // Активным окном может быть не игра, а программа поверх неё (SteelSeries Sonar, оверлеи), хотя на экране — игра.
+  // Пока игра не найдена, просматриваем все видимые окна верхнего уровня.
+  [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr h,uint cmd);
+  delegate bool EnumProc(IntPtr h,IntPtr l);
+  [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc f,IntPtr l);
+  void Scan(){
+   var seen=new HashSet<uint>();
+   EnumWindows((h,l)=>{
+    if(!IsWindowVisible(h)||IsIconic(h)||GetWindow(h,4)!=IntPtr.Zero)return true; // 4 — GW_OWNER: только самостоятельные окна
+    uint pid;GetWindowThreadProcessId(h,out pid);if(pid==self||pid==0||!seen.Add(pid))return true;
+    try{return !Adopt(h,pid);}catch{return true;}},IntPtr.Zero);}
+  bool Adopt(IntPtr h,uint pid){
+   var f=Facts(h,pid); string reason=GameRules.Classify(f,games,notGames); if(reason==null)return false;
+   var t=new StringBuilder(512); GetWindowText(h,t,512); var c=new StringBuilder(256); GetClassName(h,c,256);
+   IntPtr ph=OpenProcess(0x1000|0x00100000,false,pid); // QUERY_LIMITED_INFORMATION | SYNCHRONIZE
+   if(ph==IntPtr.Zero)return false;
+   if(gameHandle!=IntPtr.Zero)CloseHandle(gameHandle); gameHandle=ph;
+   Current=new GameInfo{Pid=(int)pid,Exe=f.Exe,FileName=System.IO.Path.GetFileName(f.Path),Path=f.Path,Title=t.ToString(),Class=c.ToString(),Hwnd=h,Reason=reason,Started=DateTime.Now};
+   if(Started!=null)Started(Current);
+   return true;}
+  void CheckAlive(){if(Current==null){try{Scan();}catch{}return;}if(gameHandle==IntPtr.Zero)return;uint code;if(GetExitCodeProcess(gameHandle,out code)&&code==259)return;End();} // 259 = STILL_ACTIVE
   void End(){var old=Current;Current=null;if(gameHandle!=IntPtr.Zero){CloseHandle(gameHandle);gameHandle=IntPtr.Zero;}if(old!=null&&Stopped!=null)Stopped(old);}
 
   static bool Covers(IntPtr h) {
