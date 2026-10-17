@@ -79,7 +79,7 @@ namespace ReplayOverlay {
    var vs=C<Slider>("VolumeSlider");vs.Value=previewVolume;player.Volume=previewVolume;vs.ValueChanged+=(s,e)=>{previewVolume=e.NewValue;Player.Volume=previewVolume;if(e.NewValue>0&&!previewSound){previewSound=true;Player.IsMuted=false;UpdateSoundButton();}};vs.PreviewMouseUp+=(s,e)=>SavePrefs();
    UpdateSoundButton();}
 
-  async Task OpenClipsFolder(){string dir=ClipsDir;if(dir.Length==0)throw new InvalidOperationException("Папка записей пока неизвестна: подключитесь к OBS");if(!Directory.Exists(dir))throw new DirectoryNotFoundException("Папка записей пока не создана");Process.Start(new ProcessStartInfo("explorer.exe","\""+dir.Replace("\"","")+"\""){UseShellExecute=true});await Task.FromResult(0);}
+  async Task OpenClipsFolder(){string dir=ClipsDir;if(dir.Length==0)throw new InvalidOperationException("Папка записей пока неизвестна: подождите, пока запустится движок записи");if(!Directory.Exists(dir))throw new DirectoryNotFoundException("Папка записей пока не создана");Process.Start(new ProcessStartInfo("explorer.exe","\""+dir.Replace("\"","")+"\""){UseShellExecute=true});await Task.FromResult(0);}
   // Файл удалили или переименовали мимо меню — обновляем список.
   void EnsureClipExists(ClipFile c){if(File.Exists(c.Path))return;CloseDetail();LoadClipsSelect(null);throw new InvalidOperationException("Файла уже нет — список обновлён");}
   ClipFile SelectedOrThrow(){if(selectedClip==null)throw new InvalidOperationException("Выберите клип");return selectedClip;}
@@ -89,7 +89,7 @@ namespace ReplayOverlay {
   async void LoadClipsSelect(string select){
    if(clipsLoading)return;clipsLoading=true;
    try{string dir=ClipsDir;var info=C<TextBlock>("ClipsInfo");
-    if(dir.Length==0){clips=new List<ClipFile>();info.Text="Папка записей пока неизвестна — подключитесь к OBS.";RenderClips();return;}
+    if(dir.Length==0){clips=new List<ClipFile>();info.Text="Папка записей пока неизвестна — подождите, пока запустится движок записи.";RenderClips();return;}
     var dirs=new[]{dir,ShotDir,replayDir}.Where(x=>x.Length>0).Select(x=>x.TrimEnd('\\')).Distinct(StringComparer.OrdinalIgnoreCase).ToList();List<ClipFile> list;try{list=await Task.Run(()=>dirs.SelectMany(x=>ClipLibrary.List(x)).OrderByDescending(c=>c.Modified).ToList());}catch(Exception ex){list=new List<ClipFile>();info.Text="Папку не прочитать: "+ex.Message;}
     allClips=list;ApplyClipFilter();string keep=select??(selectedClip==null?null:selectedClip.Path);
     long total=clips.Sum(c=>c.Size);info.Text=clips.Count==0?(clipFilter=="all"?"В папке «"+dir+"» пока нет видео и скриншотов. Сохраните повтор — он появится здесь.":"Здесь пока ничего нет."):Plural(clips.Count,"файл","файла","файлов")+" · "+ClipLibrary.Size(total)+" · "+dir;info.ToolTip=dir;

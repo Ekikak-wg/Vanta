@@ -37,8 +37,8 @@ static class GalleryUiTest {
    Run(ff,"-hide_banner -v error -y -f lavfi -i smptebars=size=640x360:rate=30:duration=5 -f lavfi -i sine=duration=5 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac \""+Path.Combine(dir,"2026-10-13_21-30-00.mp4")+"\"");
    File.SetLastWriteTime(Path.Combine(dir,"2026-10-13_21-30-00.mp4"),DateTime.Now.AddDays(-1));
    // Настройки меню для теста: без игр, без запуска OBS, известная папка. OBS недоступен: путь к настройкам WebSocket — несуществующий.
-   File.WriteAllText(prefs,Json.Encode(Json.D("autoGames",false,"launchObs",false,"indicator","off","lastDirectory",dir,"galleryGrid",false,"hotkeys",Json.D("menu","","save",""))));
-   ObsClient.ConfigPath=Path.Combine(dir,"нет-config.json");
+   File.WriteAllText(prefs,Json.Encode(Json.D("autoGames",false,"indicator","off","lastDirectory",dir,"galleryGrid",false,"hotkeys",Json.D("menu","","save",""))));
+   // Движка рядом с тестом нет: меню пишет «Движок записи не установлен» и ни к чему не подключается.
    var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
    ov=new Overlay(true);var w=ov.Window;w.ShowInTaskbar=false;w.ShowActivated=false;w.Topmost=false;
    w.Loaded+=(s,e)=>{w.Left=-30000;w.Top=0;}; // после Position(): окно уходит за экран до первой отрисовки

@@ -29,10 +29,9 @@ namespace ReplayOverlay {
   // Процесс движка
   EngineHome Home{get;}
   bool IsRunning{get;}
-  void Close();                                        // закрыть свою копию штатно (OBS пользователя не закрывается никогда)
+  void Close();                                        // закрыть движок штатно
   bool IsProcess(string exeName);                      // это процесс движка (для списков программ и звука)
   bool LaunchHidden(bool startReplay,string reason);   // запустить без окна, если ещё не запущен
-  void Open();                                         // показать окно движка (или запустить его)
 
   // Запись
   Task<bool> ToggleRecord();                           // возвращает: идёт ли запись после переключения
@@ -74,27 +73,22 @@ namespace ReplayOverlay {
   Task<Dictionary<string,object>> Call(string request,Dictionary<string,object> data=null);
  }
 
- // Где живёт движок: программа, её настройки и как её запускать.
- // Своя копия OBS (портативная, в папке «engine» рядом с меню) или — пока её нет — OBS Studio, установленный пользователем.
+ // Где живёт движок: своя портативная копия OBS Studio в папке «engine» рядом с меню (её ставит установщик).
  public sealed class EngineHome {
-  public string Name="OBS";
-  public string Root;                                  // папка своей копии; null — OBS пользователя
-  public string Executable;                            // null — найти установленный OBS
+  public string Name="движок записи";
+  public string Root,Executable;
   public string ProcessName="obs64";
-  public string HiddenArgs="--minimize-to-tray --disable-shutdown-check";
-  public string PreferredFolder;                       // папка записей для нового профиля своей копии (прежняя папка пользователя)
-  public bool Own{get{return Root!=null;}}
-  public string ConfigRoot{get{return Own?Path.Combine(Root,@"config\obs-studio"):null;}}
-  public string WebSocketConfig{get{return Own?Path.Combine(ConfigRoot,@"plugin_config\obs-websocket\config.json"):null;}}
-  public static EngineHome UserObs(){return new EngineHome();}
-  public static EngineHome OwnCopy(string root){return new EngineHome{Name="движок записи",Root=root,Executable=Path.Combine(root,@"bin\64bit\obs64.exe"),HiddenArgs="--portable --disable-updater --minimize-to-tray --disable-shutdown-check"};}
-  public static EngineHome Find(){string root=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"engine");return File.Exists(Path.Combine(root,@"bin\64bit\obs64.exe"))?OwnCopy(root):UserObs();}
-  public string FindExecutable(){return Executable??ObsConfig.Executable();}
+  public string HiddenArgs="--portable --disable-updater --minimize-to-tray --disable-shutdown-check";
+  public string PreferredFolder;                       // папка записей для нового профиля (прежняя папка пользователя)
+  public string ConfigRoot{get{return Path.Combine(Root,@"config\obs-studio");}}
+  public string WebSocketConfig{get{return Path.Combine(ConfigRoot,@"plugin_config\obs-websocket\config.json");}}
+  public bool Installed{get{return File.Exists(Executable);}}
+  public static EngineHome OwnCopy(string root){return new EngineHome{Root=root,Executable=Path.Combine(root,@"bin\64bit\obs64.exe")};}
+  public static EngineHome Find(){return OwnCopy(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"engine"));}
   // Свою копию узнаём по пути: рядом может работать OBS пользователя с тем же именем процесса.
   // Путь читается с минимальными правами — так он доступен и у копии, запущенной с правами администратора.
   public Process[] Running(){
-   var all=Process.GetProcessesByName(ProcessName);if(!Own)return all;
-   return all.Where(p=>string.Equals(ImagePath(p.Id),Executable,StringComparison.OrdinalIgnoreCase)).ToArray();}
+   return Process.GetProcessesByName(ProcessName).Where(p=>string.Equals(ImagePath(p.Id),Executable,StringComparison.OrdinalIgnoreCase)).ToArray();}
   [System.Runtime.InteropServices.DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
   [System.Runtime.InteropServices.DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
   [System.Runtime.InteropServices.DllImport("kernel32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)] static extern bool QueryFullProcessImageName(IntPtr h,int flags,System.Text.StringBuilder s,ref int size);
@@ -121,12 +115,12 @@ namespace ReplayOverlay {
   readonly EngineHome home; readonly ObsClient client;
   readonly Func<string,Dictionary<string,object>,Task<Dictionary<string,object>>> fake;
   public ObsEngine(EngineHome home){this.home=home;client=new ObsClient{ConfigFile=home.WebSocketConfig};
-   if(home.Own)ObsConfig.RootOverride=home.ConfigRoot; // журналы, профиль и кодировщики читаются из своей копии
+   ObsConfig.Root=home.ConfigRoot; // журналы, профиль и кодировщики читаются из папки движка
    client.ConnectionChanged+=c=>{var h=ConnectionChanged;if(h!=null)h(c);};
    client.Status+=s=>{var h=Status;if(h!=null)h(s);};
    client.EventReceived+=Deliver;}
   // Для проверок: ответы на запросы задаёт тест, события подаются через Deliver.
-  public ObsEngine(Func<string,Dictionary<string,object>,Task<Dictionary<string,object>>> fakeCall){home=new EngineHome();fake=fakeCall;}
+  public ObsEngine(Func<string,Dictionary<string,object>,Task<Dictionary<string,object>>> fakeCall){home=EngineHome.Find();fake=fakeCall;}
 
   public string Name{get{return home.Name;}}
   public bool Connected{get{return fake!=null||client.Connected;}}
@@ -158,7 +152,8 @@ namespace ReplayOverlay {
   public bool IsRunning{get{return home.Running().Length>0;}}
   // Ждём до 5 с, чтобы следующий запуск меню не застал копию на выходе (тогда новая не запустится, а старая вот-вот закроется).
   // Копию с правами администратора закрывает задача «Close engine»: её окно не принимает WM_CLOSE от меню.
-  public void Close(){if(!home.Own)return;foreach(var p in home.Running()){try{
+  public const string NotInstalled="Движок записи не установлен — запустите установщик Replay OBS ещё раз";
+  public void Close(){foreach(var p in home.Running()){try{
     bool asked=EngineWindows.Close(p.Id);
     if(!asked&&EngineTasks.Installed())asked=EngineTasks.Run(EngineTasks.Stop);
     if(!asked){Log.Write("Движок записи не удалось попросить закрыться");continue;}
@@ -168,24 +163,18 @@ namespace ReplayOverlay {
   public static int CloseHere(EngineHome home){int left=0;foreach(var p in home.Running()){if(EngineWindows.Close(p.Id)&&p.WaitForExit(10000))continue;left++;}return left;}
   public bool IsProcess(string exeName){return string.Equals(exeName,home.ProcessName,StringComparison.OrdinalIgnoreCase)||string.Equals(exeName,"obs32",StringComparison.OrdinalIgnoreCase);}
   public bool LaunchHidden(bool startReplay,string reason){
-   if(IsRunning)return false;string exe=home.FindExecutable();
-   if(exe==null){Log.Write("OBS не найден — запуск пропущен");var h=Status;if(h!=null)h("OBS Studio не найден");return false;}
-   if(home.Own){try{foreach(string line in EngineSetup.Prepare(home,home.PreferredFolder))Log.Write(line);}catch(Exception ex){Log.Write("Движок записи не подготовлен: "+ex.Message);return false;}}
-   int stale=ObsConfig.ClearCrashSentinels();if(stale>0)Log.Write("Сняты признаки прошлого сбоя OBS ("+stale+"), чтобы он не ждал ответа в скрытом окне");
+   if(IsRunning)return false;string exe=home.Executable;
+   if(!home.Installed){Log.Write("Движок записи не установлен: нет "+exe);var h=Status;if(h!=null)h(NotInstalled);return false;}
+   try{foreach(string line in EngineSetup.Prepare(home,home.PreferredFolder))Log.Write(line);}catch(Exception ex){Log.Write("Движок записи не подготовлен: "+ex.Message);return false;}
+   int stale=ObsConfig.ClearCrashSentinels();if(stale>0)Log.Write("Сняты признаки прошлого сбоя движка ("+stale+"), чтобы он не ждал ответа в скрытом окне");
    // Есть задачи Планировщика — движок запускается с правами администратора (повышенный приоритет на видеокарте).
    // Повтор задача сама не включает: его включает меню после подключения.
-   if(home.Own&&EngineTasks.Installed()){
+   if(EngineTasks.Installed()){
     if(EngineTasks.Run(EngineTasks.Start)){Log.Write("Движок записи запущен с приоритетом на видеокарте ("+reason+")");return true;}
     Log.Write("Задача Планировщика не запустила движок — запускаю обычным способом");}
-   string what=home.Own?"Движок записи запущен":"OBS запущен в трее";
-   try{Process.Start(new ProcessStartInfo(exe,home.HiddenArgs+(startReplay?" --startreplaybuffer":"")){WorkingDirectory=Path.GetDirectoryName(exe),UseShellExecute=true});Log.Write(what+" ("+reason+")");return true;}
-   catch(Exception ex){Log.Write("Не удалось запустить "+(home.Own?"движок записи":"OBS")+": "+ex.Message);return false;}}
-  public void Open(){
-   if(home.Own){if(!IsRunning)LaunchHidden(true,"по кнопке");return;} // у своей копии окна нет — только запуск
-   var running=home.Running();
-   if(running.Length>0){var h=running[0].MainWindowHandle;if(h!=IntPtr.Zero){Native.ShowWindow(h,9);Native.SetForegroundWindow(h);}return;}
-   string exe=home.FindExecutable();if(exe==null)throw new FileNotFoundException("OBS Studio не найден. Установите его с obsproject.com");
-   Process.Start(new ProcessStartInfo(exe,"--startreplaybuffer"){WorkingDirectory=Path.GetDirectoryName(exe),UseShellExecute=true});}
+   try{Process.Start(new ProcessStartInfo(exe,home.HiddenArgs+(startReplay?" --startreplaybuffer":"")){WorkingDirectory=Path.GetDirectoryName(exe),UseShellExecute=true});Log.Write("Движок записи запущен ("+reason+")");return true;}
+   catch(Exception ex){Log.Write("Не удалось запустить движок записи: "+ex.Message);return false;}}
+
 
   // ——— Запись ———
   public async Task<bool> ToggleRecord(){return Json.Bool(await Call("ToggleRecord"),"outputActive");}

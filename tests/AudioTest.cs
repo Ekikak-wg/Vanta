@@ -66,7 +66,7 @@ static class AudioTest {
 
   var simple = new FakeObs { Mode = "Simple" };
   try { new AudioSetup(simple.Call, new AudioState()).SplitTracks(scenes, true).Wait(); Check(false, "простой режим вывода — понятная ошибка"); }
-  catch (AggregateException ex) { Check(ex.InnerException.Message.Contains("расширенный"), "простой режим вывода — понятная ошибка"); }
+  catch (AggregateException ex) { Check(ex.InnerException.Message.Contains("расширенн"), "простой режим вывода — понятная ошибка"); }
 
   // Режим «только выбранные»
   var o2 = new FakeObs(); var st = new AudioState(); var b = new AudioSetup(o2.Call, st);

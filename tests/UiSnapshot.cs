@@ -14,8 +14,7 @@ static class UiSnapshot {
  [STAThread] static int Main(string[] args){
   string outDir=args.Length>0?args[0]:AppDomain.CurrentDomain.BaseDirectory;Directory.CreateDirectory(outDir);
   string prefs=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"overlay-settings.json");
-  File.WriteAllText(prefs,Json.Encode(Json.D("autoGames",false,"launchObs",false,"indicator","off","keysPanel",false,"lastDirectory",Path.GetTempPath(),"hotkeys",Json.D("menu","","save","","record","","shot",""))));
-  ObsClient.ConfigPath=Path.Combine(Path.GetTempPath(),"нет-config.json");
+  File.WriteAllText(prefs,Json.Encode(Json.D("autoGames",false,"indicator","off","keysPanel",false,"lastDirectory",Path.GetTempPath(),"hotkeys",Json.D("menu","","save","","record","","shot",""))));
   try{
    var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
    var ov=new Overlay(true);var w=ov.Window;w.ShowInTaskbar=false;w.ShowActivated=false;w.Topmost=false;

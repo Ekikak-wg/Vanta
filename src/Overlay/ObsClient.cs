@@ -20,12 +20,11 @@ namespace ReplayOverlay {
   public static Dictionary<string,object> Decode(string value) { return Obj(new JavaScriptSerializer().DeserializeObject(value)); }
  }
  public sealed class ObsClient : IDisposable {
-  public static string ConfigPath=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),@"obs-studio\plugin_config\obs-websocket\config.json");
   private readonly CancellationTokenSource stop=new CancellationTokenSource();
   private readonly SemaphoreSlim sendGate=new SemaphoreSlim(1,1);
   private readonly ConcurrentDictionary<string,TaskCompletionSource<Dictionary<string,object>>> pending=new ConcurrentDictionary<string,TaskCompletionSource<Dictionary<string,object>>>();
   private ClientWebSocket socket;
-  public string ConfigFile; // config.json obs-websocket этой копии OBS; null — ConfigPath (OBS пользователя)
+  public string ConfigFile; // config.json obs-websocket движка записи
   public volatile bool Connected;
   public event Action<bool> ConnectionChanged;
   public event Action<string,Dictionary<string,object>> EventReceived;
@@ -36,7 +35,7 @@ namespace ReplayOverlay {
   private async Task ConnectLoop() {
    while(!stop.IsCancellationRequested) {
     try {
-     var config=Json.Decode(File.ReadAllText(ConfigFile??ConfigPath));
+     var config=Json.Decode(File.ReadAllText(ConfigFile));
      if(!Json.Bool(config,"server_enabled"))throw new InvalidOperationException("У движка записи выключено управление");
      int port=Json.Int(config,"server_port",4455);
      socket=new ClientWebSocket(); socket.Options.Proxy=null; socket.Options.KeepAliveInterval=TimeSpan.FromSeconds(25);

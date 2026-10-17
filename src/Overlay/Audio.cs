@@ -126,7 +126,7 @@ namespace ReplayOverlay {
   public async Task<List<string>> SplitTracks(IList<string> scenes,bool discordPresent) {
    var log=new List<string>();
    if(Json.Str(await call("GetProfileParameter",Json.D("parameterCategory","Output","parameterName","Mode")),"parameterValue")!="Advanced")
-    throw new InvalidOperationException("Включите в OBS расширенный режим вывода: Настройки → Вывод → Режим вывода «Расширенный»");
+    throw new InvalidOperationException("Дорожки настраиваются только в расширенном режиме вывода движка записи");
    var special=await call("GetSpecialInputs",Json.D());
    string desktop=Json.Str(special,"desktop1"),mic=Json.Str(special,"mic1");
    if(desktop.Length>0){await SetMask(desktop,Full|Desktop);log.Add("«"+desktop+"» → дорожки 1 и 5");}
@@ -235,7 +235,7 @@ namespace ReplayOverlay {
   public async Task<List<string>> ApplyLayout(string layout,bool desktopRecorded,int customRecTracks){
    var log=new List<string>();
    if(Json.Str(await call("GetProfileParameter",Json.D("parameterCategory","Output","parameterName","Mode")),"parameterValue")!="Advanced")
-    throw new InvalidOperationException("Включите в OBS расширенный режим вывода: Настройки → Вывод → Режим вывода «Расширенный»");
+    throw new InvalidOperationException("Дорожки настраиваются только в расширенном режиме вывода движка записи");
    if(layout!="custom")foreach(var s in await Sources()){
     if(s.Role=="game"&&(layout=="split"||!desktopRecorded))await EnableGameAudio(s.Name);
     int want=Desired(layout,desktopRecorded,s.Role);if(want!=s.Mask){await SetMask(s.Name,want);log.Add("«"+s.Name+"» → "+(want==0?"не записывается":"дорожки "+string.Join(", ",Enumerable.Range(0,6).Where(t=>(want&(1<<t))!=0).Select(t=>(t+1).ToString()))));}

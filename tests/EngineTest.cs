@@ -81,15 +81,15 @@ static class EngineTest {
 
    // Процесс
    Check(e.IsProcess("obs64")&&e.IsProcess("OBS64")&&e.IsProcess("obs32")&&!e.IsProcess("ReplayOverlay"),"процессы OBS узнаются по имени");
-   Check(e.Name=="OBS"&&e.Connected,"имя движка и подключение (поддельное)");
+   Check(e.Name=="движок записи"&&e.Connected,"имя движка и подключение (поддельное)");
 
    // Своя копия: подготовка файлов перед запуском
    string root=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"ReplayEngine-"+Guid.NewGuid().ToString("N").Substring(0,8));
    try{
     var home=EngineHome.OwnCopy(root);
-    Check(home.Own&&home.ConfigRoot==System.IO.Path.Combine(root,@"config\obs-studio")&&home.WebSocketConfig.EndsWith(@"plugin_config\obs-websocket\config.json"),"пути своей копии");
+    Check(!home.Installed&&home.ConfigRoot==System.IO.Path.Combine(root,@"config\obs-studio")&&home.WebSocketConfig.EndsWith(@"plugin_config\obs-websocket\config.json"),"пути своей копии");
     Check(home.Running().Length==0,"своя копия не запущена (процесс OBS пользователя не считается своим)");
-    Check(!EngineHome.UserObs().Own&&EngineHome.UserObs().WebSocketConfig==null,"OBS пользователя — без своих путей");
+    Check(EngineHome.Find().Root==System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"engine"),"движок ищется только в папке «engine» рядом с меню");
     string folder=System.IO.Path.Combine(root,"Видео");
     var first=EngineSetup.Prepare(home,folder);
     string cfg=home.ConfigRoot,user=System.IO.Path.Combine(cfg,"user.ini"),ini=System.IO.Path.Combine(cfg,@"basic\profiles\Replay\basic.ini");

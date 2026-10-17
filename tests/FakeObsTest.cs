@@ -26,16 +26,14 @@ static class FakeObsTest {
   Task.Run(() => Serve(listener));
   try {
    // 1. Неверный пароль: сервер закрывает соединение, клиент не считает себя подключённым.
-   ObsClient.ConfigPath = WriteConfig(dir, "bad.json", port, "wrong-password");
-   using (var bad = new ObsClient()) {
+   using (var bad = new ObsClient { ConfigFile = WriteConfig(dir, "bad.json", port, "wrong-password") }) {
     string status = null; bad.Status += s => status = s;
     bad.Start(); Thread.Sleep(1500);
     Check(!bad.Connected && rejected >= 1, "неверный пароль отклонён, клиент не подключён");
     Check(status != null, "клиенту сообщено о сбое подключения: " + status);
    }
    // 2. Верный пароль.
-   ObsClient.ConfigPath = WriteConfig(dir, "good.json", port, Password);
-   using (var obs = new ObsClient()) {
+   using (var obs = new ObsClient { ConfigFile = WriteConfig(dir, "good.json", port, Password) }) {
     var events = new List<string>(); int ups = 0;
     obs.EventReceived += (t, d) => { lock (events) events.Add(t + ":" + Json.Str(d, "savedReplayPath")); };
     obs.ConnectionChanged += c => { if (c) Interlocked.Increment(ref ups); };
@@ -68,8 +66,7 @@ static class FakeObsTest {
     Check(Json.Int(again.Result, "n") == 3, "запросы работают после переподключения");
     lock (received) Check(received.Count(r => r == "Never") == 1 && received.All(r => r.Length > 0), "все запросы содержали requestType");
    }
-   ObsClient.ConfigPath = Path.Combine(dir, "missing.json");
-   using (var none = new ObsClient()) { string s = null; none.Status += x => s = x; none.Start(); Thread.Sleep(800); Check(!none.Connected && s != null && s.Contains("Движок записи"), "нет конфигурации: понятное сообщение"); }
+   using (var none = new ObsClient { ConfigFile = Path.Combine(dir, "missing.json") }) { string s = null; none.Status += x => s = x; none.Start(); Thread.Sleep(800); Check(!none.Connected && s != null && s.Contains("Движок записи"), "нет конфигурации: понятное сообщение"); }
   } finally { listener.Stop(); try { Directory.Delete(dir, true); } catch { } }
   Console.WriteLine(failures == 0 ? "ИТОГ: все проверки пройдены" : "ИТОГ: провалов " + failures);
   return failures == 0 ? 0 : 1;

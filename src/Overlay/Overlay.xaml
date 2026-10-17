@@ -192,7 +192,7 @@
         <StackPanel Grid.Column="2"><TextBlock Text="Шаблон имени" Style="{StaticResource Label}"/><TextBox x:Name="FilenameBox" ToolTip="%CCYY год, %MM месяц, %DD день, %hh часы, %mm минуты, %ss секунды"/></StackPanel>
        </Grid>
        <TextBlock x:Name="FormatHint" Text="Шаблон: %CCYY-%MM-%DD_%hh-%mm-%ss → 2026-10-14_12-30-05. Повторы называются так же, но с приставкой из «Сохранения»." Style="{StaticResource Hint}" Margin="0,6,0,0"/>
-       <TextBlock x:Name="EncoderHint" Text="Кодировщик и качество меняются здесь только в расширенном режиме вывода OBS (Настройки OBS → Вывод → Режим вывода: Расширенный)." Style="{StaticResource Hint}" Foreground="#F2C46D" Margin="0,8,0,0" Visibility="Collapsed"/>
+       <TextBlock x:Name="EncoderHint" Text="Кодировщик и качество меняются здесь только в расширенном режиме вывода движка записи." Style="{StaticResource Hint}" Foreground="#F2C46D" Margin="0,8,0,0" Visibility="Collapsed"/>
        <TextBlock Text="Сейчас эти параметры общие для записи и мгновенного повтора — так устроен движок записи. Применение остановит и снова запустит буфер повтора (накопленная история сбросится); смена кодировщика или кодека ещё и перезагрузит движок — это пара секунд." Style="{StaticResource Hint}" Margin="0,8,0,10"/>
        <Button x:Name="ApplyButton" Content="Применить" HorizontalAlignment="Left" Background="#1F00D46A" Foreground="#7DF0B0"/>
       </StackPanel>
@@ -263,29 +263,10 @@
      </Border>
      <Button x:Name="SaveButton" Height="64" Background="#00D46A" Foreground="#06140C" Margin="0,0,0,6"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE74E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="17" VerticalAlignment="Center" Margin="0,0,10,0"/><TextBlock x:Name="SaveTitle" Text="Сохранить последние 5 минут" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel></Button>
      <TextBlock x:Name="SaveHint" Text="" Style="{StaticResource Label}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
-     <TextBlock x:Name="SrSection" Text="Качество и звук повтора" Style="{StaticResource Section}"/>
-     <Border x:Name="SrCard" Style="{StaticResource Card}">
+     <TextBlock Text="Качество и звук повтора" Style="{StaticResource Section}"/>
+     <Border Style="{StaticResource Card}">
       <StackPanel>
-       <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <StackPanel><TextBlock Text="Отдельные настройки повтора" FontSize="14" FontWeight="SemiBold"/><TextBlock x:Name="SrHint" Text="" Style="{StaticResource Hint}" FontSize="11.5" Margin="0,4,10,0"/></StackPanel>
-        <ToggleButton x:Name="SrSwitch" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Top" ToolTip="Повтор со своими качеством и звуком (плагин Source Record)"/>
-       </Grid>
-       <StackPanel x:Name="SrPanel" Visibility="Collapsed" Margin="0,12,0,0">
-        <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
-         <StackPanel><TextBlock Text="Кадров/с" Style="{StaticResource Label}"/><ComboBox x:Name="SrFpsBox"><ComboBoxItem Content="Как у записи" Tag="1"/><ComboBoxItem Content="Вдвое меньше" Tag="2"/></ComboBox></StackPanel>
-         <TextBlock Grid.Column="2" Text="Разрешение — как у записи: плагин на OBS 32 не умеет уменьшать картинку повтора (проверено)." Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="0,14,0,0"/>
-        </Grid>
-        <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
-         <StackPanel><TextBlock Text="Кодек" Style="{StaticResource Label}"/><ComboBox x:Name="SrCodecBox"/></StackPanel>
-         <StackPanel Grid.Column="2"><TextBlock Text="Качество" Style="{StaticResource Label}"/><ComboBox x:Name="SrQualityBox"><ComboBoxItem Content="Рекомендуемое" Tag="recommended"/><ComboBoxItem Content="Высокое" Tag="high"/><ComboBoxItem Content="Максимальное" Tag="max"/></ComboBox></StackPanel>
-        </Grid>
-        <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
-         <StackPanel><TextBlock Text="Формат" Style="{StaticResource Label}"/><ComboBox x:Name="SrFormatBox"><ComboBoxItem Content="MKV" Tag="mkv"/><ComboBoxItem Content="MP4" Tag="mp4"/></ComboBox></StackPanel>
-         <StackPanel Grid.Column="2"><TextBlock Text="Звук" Style="{StaticResource Label}"/><ComboBox x:Name="SrAudioBox"><ComboBoxItem Content="Дорожка 1 — всё вместе" Tag="track1"/><ComboBoxItem Content="Все дорожки, как у записи" Tag="all"/></ComboBox></StackPanel>
-        </Grid>
-        <TextBlock Text="Папка и имя файла — как в «Настройки → Сохранение». Применение перезапустит буфер повтора." Style="{StaticResource Hint}" Margin="0,8,0,8"/>
-        <Button x:Name="SrApply" Content="Применить настройки повтора" HorizontalAlignment="Left" Padding="12,7" FontSize="12" Background="#1F00D46A" Foreground="#7DF0B0"/>
-       </StackPanel>
+       <TextBlock Text="Повтор пишется с теми же качеством, кодеком и звуковыми дорожками, что и запись." Style="{StaticResource Hint}" TextWrapping="Wrap"/>
        <Button x:Name="ReplayOpenRecord" Content="Открыть параметры записи" HorizontalAlignment="Left" Padding="12,7" FontSize="12" Margin="0,10,0,0"/>
       </StackPanel>
      </Border>
@@ -557,7 +538,6 @@
       <TextBlock Text="Система" Style="{StaticResource Section}"/>
       <Border Style="{StaticResource Card}">
        <StackPanel>
-        <CheckBox x:Name="LaunchObsBox" Content="Запускать OBS вместе с меню (свёрнутым в трей)" ToolTip="Если OBS упадёт, меню запустит его снова"/>
         <CheckBox x:Name="KeepReplayBox" Content="Держать мгновенный повтор включённым" ToolTip="После перезапуска движка записи буфер включится сам. Если выключить его вручную — меню не трогает"/>
         <CheckBox x:Name="DiagnosticsBox" Content="Предупреждать о пропуске кадров и нехватке места"/>
         <CheckBox x:Name="GpuPriorityBox" Content="Приоритет записи на видеокарте" ToolTip="Движок записи работает с правами администратора и получает повышенный приоритет на видеокарте — меньше пропусков кадров, когда игра загружает её полностью. Windows один раз спросит разрешение."/>
@@ -571,7 +551,6 @@
         <TextBlock Text="Индикатор, уведомления и подсказка клавиш не попадают в запись и не мешают мыши. Над игрой в эксклюзивном полноэкранном режиме их не видно." Style="{StaticResource Hint}" Margin="0,8,0,12"/>
         <WrapPanel>
          <Button x:Name="LogButton" Content="Открыть журнал" Padding="12,7" FontSize="12" Margin="0,0,8,8"/>
-         <Button x:Name="LaunchButton" Content="Открыть OBS" Padding="12,7" FontSize="12" Margin="0,0,8,8"/>
          <Button x:Name="ExportButton" Content="Экспорт диагностики" Padding="12,7" FontSize="12" Margin="0,0,8,8" ToolTip="Архив: журналы меню и движка записи, настройки меню, сведения о системе. Пароля WebSocket в нём нет"/>
          <Button x:Name="ResetButton" Content="Сбросить настройки меню" Padding="12,7" FontSize="12" Margin="0,0,8,8" Foreground="#F59B92" ToolTip="Вернуть настройки меню к исходным. Настройки движка записи не меняются"/>
         </WrapPanel>

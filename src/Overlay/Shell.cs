@@ -26,7 +26,7 @@ namespace ReplayOverlay {
    for(int i=0;i<Pages.Length;i++){string p=Pages[i];C<RadioButton>(TabNames[i]).Checked+=(s,e)=>ShowPage(p);}
    C<Button>("GearButton").Click+=(s,e)=>ShowPage("settings");
    foreach(var nav in new[]{new[]{"NavAudio","AudioSection"},new[]{"NavCapture","CaptureSection"},new[]{"NavPrivacy","PrivacySection"},new[]{"NavHotkeys","HotkeySection"},new[]{"NavSystem","SystemSection"}}){string target=nav[1];C<Button>(nav[0]).Click+=(s,e)=>ScrollToSection(target);}
-   // Переключатель повтора: состояние берётся только из OBS (событие ReplayBufferStateChanged), а не из нажатия.
+   // Переключатель повтора: состояние берётся только из движка (событие о буфере повтора), а не из нажатия.
    var rs=C<ToggleButton>("ReplaySwitch");rs.Click+=(s,e)=>{rs.IsChecked=ReplayOn;Run(ToggleReplay);};
    C<Button>("RecordKeyEdit").Click+=(s,e)=>{ShowPage("settings");StartCapture("record");ScrollToSection("HotkeySection");};
    C<Button>("ReplayOpenRecord").Click+=(s,e)=>ShowPage("record");
@@ -58,12 +58,14 @@ namespace ReplayOverlay {
   void MarkDurationChip(int seconds){foreach(int sec in DurationChips)C<RadioButton>("D"+sec).IsChecked=sec==seconds;}
   static string DurationWords(int s){if(s%60==0){int m=s/60;return m+" "+(m%10==1&&m%100!=11?"минуту":m%10>=2&&m%10<=4&&(m%100<12||m%100>14)?"минуты":"минут");}if(s<60)return s+" с";return (s/60)+" мин "+(s%60)+" с";}
 
-  // Длительность буфера: OBS читает её при запуске буфера, поэтому буфер перезапускается.
+  bool ReplayOn{get{return replay;}}
+  async Task ToggleReplay(){EnsureReady();await engine.ToggleReplay();await Refresh();}
+
+  // Длительность буфера: движок читает её при запуске буфера, поэтому буфер перезапускается.
   async Task ApplyDuration(){EnsureReady();int seconds=(int)C<Slider>("DurationSlider").Value;if(seconds==duration){Message("Длительность уже "+FormatDuration(seconds));return;}
    bool resume=replayAvailable&&await engine.ReplayActive()==true;busy=true;UpdateControls();
    try{if(resume){await engine.StopReplay();await WaitBuffer(false);}
     await engine.SetReplayDuration(seconds);
-    if(srOn){duration=seconds;await ApplySR(false);} // отдельный повтор берёт длительность из фильтра
     if(resume){await engine.StartReplay();await WaitBuffer(true);}}
    finally{busy=false;UpdateControls();}
    duration=seconds;Log.Write("Длительность повтора: "+FormatDuration(seconds));Message("Длительность повтора: "+FormatDuration(seconds)+(resume?" · буфер запущен заново":""));await Refresh();}

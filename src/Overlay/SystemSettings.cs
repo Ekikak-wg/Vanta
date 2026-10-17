@@ -18,8 +18,7 @@ namespace ReplayOverlay {
   void BindSystem(){
    var tb=C<CheckBox>("ToastsBox");tb.IsChecked=toastsOn;toasts.Enabled=toastsOn;
    tb.Click+=(s,e)=>{toastsOn=tb.IsChecked==true;toasts.Enabled=toastsOn;SavePrefs();Message(toastsOn?"Уведомления включены":"Уведомления выключены — сообщения только в журнале и внизу меню");};
-   var gp=C<CheckBox>("GpuPriorityBox");gp.Visibility=engine.Home.Own?Visibility.Visible:Visibility.Collapsed;
-   if(engine.Home.Own){gp.IsChecked=EngineTasks.Installed();gp.Click+=(s,e)=>{bool want=gp.IsChecked==true;gp.IsChecked=!want;Run(()=>SetGpuPriority(want));};}
+   var gp=C<CheckBox>("GpuPriorityBox");gp.IsChecked=EngineTasks.Installed();gp.Click+=(s,e)=>{bool want=gp.IsChecked==true;gp.IsChecked=!want;Run(()=>SetGpuPriority(want));};
    C<Button>("ExportButton").Click+=(s,e)=>Run(ExportDiagnostics);
    C<Button>("ResetButton").Click+=(s,e)=>ResetSettings();}
 
@@ -49,7 +48,7 @@ namespace ReplayOverlay {
    var info=new StringBuilder();
    info.AppendLine("Replay OBS "+Assembly.GetExecutingAssembly().GetName().Version.ToString(3));
    info.AppendLine("Windows "+Convert.ToString(Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion","CurrentBuildNumber","?"))+(Environment.Is64BitOperatingSystem?" x64":""));
-   info.AppendLine("OBS: "+(engine.Connected?"подключён":"не подключён"));
+   info.AppendLine("Движок записи: "+(engine.Connected?"подключён":engine.Home.Installed?"не подключён":"не установлен"));
    if(engine.Connected){try{info.AppendLine(await engine.Version());}catch(Exception){}}
    info.AppendLine("Профиль: "+profileName+" · режим вывода: "+outputMode+" · кодировщик: "+recEncoderId);
    info.AppendLine("Кодировщики: "+string.Join(", ",encoders.Select(x=>x.Id)));
@@ -61,7 +60,7 @@ namespace ReplayOverlay {
      var e=zip.CreateEntry("система.txt");using(var w=new StreamWriter(e.Open(),new UTF8Encoding(true)))w.Write(text);
      if(Directory.Exists(logs))foreach(var f in Directory.GetFiles(logs,"*.log"))AddShared(zip,f,"меню/"+Path.GetFileName(f));
      if(File.Exists(settings))AddShared(zip,settings,"меню/overlay-settings.json");
-     if(Directory.Exists(obsLogs))foreach(var f in new DirectoryInfo(obsLogs).GetFiles("*.txt").OrderByDescending(x=>x.LastWriteTime).Take(3))AddShared(zip,f.FullName,"obs/"+f.Name);}});
+     if(Directory.Exists(obsLogs))foreach(var f in new DirectoryInfo(obsLogs).GetFiles("*.txt").OrderByDescending(x=>x.LastWriteTime).Take(3))AddShared(zip,f.FullName,"engine/"+f.Name);}});
    Log.Write("Диагностика сохранена: "+Path.GetFileName(target));Message("Диагностика сохранена: "+target);
    Process.Start(new ProcessStartInfo("explorer.exe","/select,\""+target+"\""){UseShellExecute=true});}
   // Файл может быть открыт на запись (журнал OBS) — читаем с общим доступом.

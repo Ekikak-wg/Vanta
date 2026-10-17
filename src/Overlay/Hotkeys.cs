@@ -35,47 +35,4 @@ namespace ReplayOverlay {
   public bool Same(Hotkey other) { return other!=null&&other.Mods==Mods&&other.Key==Key; }
  }
 
- // Только чтение горячих клавиш самого OBS — чтобы предупредить о совпадении (тогда сработают оба).
- public static class ObsHotkeys {
-  static readonly Dictionary<string,string> Names=new Dictionary<string,string>{
-   {"ReplayBuffer.Save","сохранить повтор"},{"OBSBasic.StartRecording","начать запись"},{"OBSBasic.StopRecording","остановить запись"},
-   {"OBSBasic.StartReplayBuffer","включить повтор"},{"OBSBasic.StopReplayBuffer","выключить повтор"},{"OBSBasic.StartStreaming","начать стрим"},
-   {"OBSBasic.StopStreaming","остановить стрим"},{"OBSBasic.StartVirtualCam","включить виртуальную камеру"},{"OBSBasic.StopVirtualCam","выключить виртуальную камеру"},
-   {"OBSBasic.Transition","переход"},{"libobs.mute","выключить звук"},{"libobs.unmute","включить звук"},{"libobs.push-to-mute","push-to-mute"},{"libobs.push-to-talk","push-to-talk"}};
-
-  public static List<KeyValuePair<Hotkey,string>> Read(string profileIni,string scenesJson) {
-   var list=new List<KeyValuePair<Hotkey,string>>();
-   try {
-    bool inside=false;
-    foreach(string line in File.ReadAllLines(profileIni)) {
-     if(line.StartsWith("[")){inside=line.Trim()=="[Hotkeys]";continue;}
-     int eq=line.IndexOf('='); if(!inside||eq<0)continue;
-     foreach(var pair in Json.Decode(line.Substring(eq+1)))Add(list,pair.Key=="bindings"?line.Substring(0,eq):pair.Key,null,pair.Value);
-    }
-   } catch { }
-   try {
-    object raw; var root=Json.Decode(File.ReadAllText(scenesJson));
-    if(root.TryGetValue("sources",out raw)&&raw is object[])foreach(object s in (object[])raw){var src=Json.Obj(s);object hk;if(src.TryGetValue("hotkeys",out hk))foreach(var pair in Json.Obj(hk))Add(list,pair.Key,Json.Str(src,"name"),pair.Value);}
-   } catch { }
-   return list;
-  }
-  static void Add(List<KeyValuePair<Hotkey,string>> list,string name,string source,object bindings) {
-   var arr=bindings as object[]; if(arr==null)return;
-   string what; if(!Names.TryGetValue(name,out what))what=name;
-   if(name=="OBSBasic.SelectScene"&&source!=null)what="сцена «"+source+"»"; else if(source!=null)what="«"+source+"»: "+what;
-   foreach(object b in arr){var hk=FromObs(Json.Obj(b));if(hk!=null&&!list.Any(x=>x.Key.Same(hk)&&x.Value==what))list.Add(new KeyValuePair<Hotkey,string>(hk,what));}
-  }
-  static Hotkey FromObs(Dictionary<string,object> b) {
-   string k=Json.Str(b,"key"); if(!k.StartsWith("OBS_KEY_"))return null; k=k.Substring(8);
-   Key key;
-   if(k.Length==1&&char.IsLetter(k[0]))key=(Key)Enum.Parse(typeof(Key),k);
-   else if(k.Length==1&&char.IsDigit(k[0]))key=Key.D0+(k[0]-'0');
-   else if(k.StartsWith("NUM")&&k.Length==4&&char.IsDigit(k[3]))key=Key.NumPad0+(k[3]-'0');
-   else if(k.StartsWith("F")&&k.Length<=3&&k.Skip(1).All(char.IsDigit))key=(Key)Enum.Parse(typeof(Key),k);
-   else { var map=new Dictionary<string,Key>{{"SPACE",Key.Space},{"TAB",Key.Tab},{"INSERT",Key.Insert},{"HOME",Key.Home},{"END",Key.End},{"PAGEUP",Key.PageUp},{"PAGEDOWN",Key.PageDown},{"DELETE",Key.Delete},{"PAUSE",Key.Pause},{"PRINT",Key.Snapshot},{"SCROLLLOCK",Key.Scroll}}; if(!map.TryGetValue(k,out key))return null; }
-   var mods=ModifierKeys.None;
-   if(Json.Bool(b,"control"))mods|=ModifierKeys.Control; if(Json.Bool(b,"alt"))mods|=ModifierKeys.Alt; if(Json.Bool(b,"shift"))mods|=ModifierKeys.Shift; if(Json.Bool(b,"command"))mods|=ModifierKeys.Windows;
-   return new Hotkey(mods,key);
-  }
- }
 }

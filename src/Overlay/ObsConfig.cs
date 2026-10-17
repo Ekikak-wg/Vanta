@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using Microsoft.Win32;
 
 namespace ReplayOverlay {
  // Имена объектов, через которые общаются копии меню и установщик.
@@ -10,11 +9,9 @@ namespace ReplayOverlay {
   public const string Exit=@"Local\ReplayOverlay.Exit";
  }
 
- // Где лежат файлы OBS Studio текущего пользователя. Только чтение.
+ // Где лежат файлы движка записи (своей копии OBS): журналы, профиль, коллекция сцен. Только чтение.
  public static class ObsConfig {
-  public static string RootOverride; // своя копия OBS: её папка настроек вместо %APPDATA%\obs-studio
-  public static string Root { get { return RootOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"obs-studio"); } }
-  public static string WebSocketConfig { get { return Path.Combine(Root,@"plugin_config\obs-websocket\config.json"); } }
+  public static string Root; // config\obs-studio движка; задаёт движок при создании
 
   // OBS 31+ хранит выбранный профиль и коллекцию в user.ini, более старые версии — в global.ini.
   public static string Ini(string section,string key) {
@@ -52,7 +49,7 @@ namespace ReplayOverlay {
    return Path.Combine(Root,@"basic\scenes",file);
   }
 
-  // После сбоя OBS при запуске спрашивает про безопасный режим модальным окном; запущенный в трее OBS на нём зависает
+  // После сбоя OBS (движок) при запуске спрашивает про безопасный режим модальным окном; запущенный в трее OBS на нём зависает
   // (флаг --disable-shutdown-check это окно не отключает). Признак сбоя — файлы .sentinel\run_*.
   // Вызывать только когда OBS не запущен: тогда все эти файлы устаревшие. Возвращает число удалённых.
   public static int ClearCrashSentinels() {
@@ -60,17 +57,6 @@ namespace ReplayOverlay {
    if(!Directory.Exists(dir))return 0;
    foreach(string f in Directory.GetFiles(dir,"run_*")){try{File.Delete(f);removed++;}catch{}}
    return removed;
-  }
-
-  public static string Executable() {
-   try {
-    using(var key=RegistryKey.OpenBaseKey(RegistryHive.LocalMachine,RegistryView.Registry64).OpenSubKey(@"SOFTWARE\OBS Studio")) {
-     string dir=key==null?null:key.GetValue("") as string;
-     if(!string.IsNullOrEmpty(dir)){string exe=Path.Combine(dir,@"bin\64bit\obs64.exe");if(File.Exists(exe))return exe;}
-    }
-   } catch { }
-   string fallback=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),@"obs-studio\bin\64bit\obs64.exe");
-   return File.Exists(fallback)?fallback:null;
   }
  }
 }

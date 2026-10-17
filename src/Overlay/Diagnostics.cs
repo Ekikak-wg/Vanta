@@ -70,7 +70,7 @@ namespace ReplayOverlay {
    if(prev!=null&&cur.RenderTotal>=prev.RenderTotal&&cur.RenderSkipped>=prev.RenderSkipped) {
     long total=cur.RenderTotal-prev.RenderTotal,skipped=cur.RenderSkipped-prev.RenderSkipped;
     if(skipped>=5&&skipped*100>=total)
-     list.Add(new KeyValuePair<string,string>("render","Видеокарта загружена: OBS пропустил "+skipped+" кадров отрисовки. Ограничьте FPS в игре — запись станет плавнее."));
+     list.Add(new KeyValuePair<string,string>("render","Видеокарта загружена: движок записи пропустил "+skipped+" кадров отрисовки. Ограничьте FPS в игре — запись станет плавнее."));
    }
    if(cur.DiskMb>0&&cur.DiskMb<LowDiskMb)
     list.Add(new KeyValuePair<string,string>("disk","Мало места на диске записей: "+(cur.DiskMb/1024).ToString("0.0",CultureInfo.GetCultureInfo("ru-RU"))+" ГБ. Повторы и записи могут не сохраниться."));
