@@ -474,7 +474,8 @@
          <ComboBox x:Name="AppBox" Visibility="Collapsed"/>
          <Button x:Name="AddAppButton" Grid.ColumnSpan="3" HorizontalAlignment="Left" Content="+ Добавить приложение" Padding="12,7" FontSize="12" ToolTip="Выбрать из запущенных программ или указать exe-файл"/>
         </Grid>
-        <CheckBox x:Name="NotifyBox" Content="Скрывать всплывающие уведомления Windows" Margin="0,12,0,8" ToolTip="Уведомления рисует сама Windows, а не приложение — исключение приложения их не скрывает. На новых сборках Windows 11 (26200) не срабатывает — включайте «Не беспокоить»"/>
+        <CheckBox x:Name="DndBox" Content="«Не беспокоить» на время записи" Margin="0,12,0,8" ToolTip="Пока идёт запись (Alt+F9), Windows не показывает уведомления и не проигрывает их звук. Уведомления не теряются — они остаются в центре уведомлений (Win+N). После записи режим возвращается как был."/>
+        <CheckBox x:Name="NotifyBox" Visibility="Collapsed" Content="Скрывать всплывающие уведомления Windows" Margin="0,12,0,8" ToolTip="Уведомления рисует сама Windows, а не приложение — исключение приложения их не скрывает. На новых сборках Windows 11 (26200) не срабатывает — включайте «Не беспокоить»"/>
         <CheckBox x:Name="StrictBox" Content="Строгая защита: экран с задержкой 100 мс — ни одного кадра скрытых окон"/>
         <TextBlock Text="Строгая защита сдвигает и звук всех источников на 100 мс, чтобы он не опережал картинку. В режиме «Только игра» звук будет отставать на 100 мс — на слух это незаметно." Style="{StaticResource Hint}" Margin="0,0,0,8"/>
         <TextBlock x:Name="PrivacyWarnings" Text="" Style="{StaticResource Hint}" Foreground="#F2C46D" Margin="0,0,0,8" Visibility="Collapsed"/>

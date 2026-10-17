@@ -57,6 +57,7 @@ namespace ReplayOverlay {
   readonly Dictionary<string,string> gameModes=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase); // exe → game|desktop|none (нет записи — как по умолчанию)
   bool autoGames=true,gameRestore=true;string gameAction="game";
   // Приватность: уведомления Windows, строгая защита («шторка» + задержка экрана), правила для игр.
+  bool dndOnRecord,dndOurs; // «Не беспокоить» на время записи; dndOurs — режим включило меню (вернуть после записи, выхода или сбоя)
   bool hideNotifications;StrictPrivacy strict;Dictionary<string,object> strictLoaded;DispatcherTimer revealTimer;
   readonly HashSet<string> coverScenesOn=new HashSet<string>();bool coverOn{get{return coverScenesOn.Count>0;}}
   readonly Dictionary<string,string> gamePrivacy=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase); // exe → screen|none
@@ -69,7 +70,7 @@ namespace ReplayOverlay {
    acrylic=!previewMode&&Backdrop.Supported;
    if(acrylic){Backdrop.Prepare(window);var shell=(Border)window.FindName("Shell");shell.CornerRadius=new CornerRadius(0);shell.Background=Brush("#B80D0F13");((Border)window.FindName("Sidebar")).Background=Brush("#80101216");}
    if(preview)window.ShowInTaskbar=true;
-   LoadPrefs();ForgetOtherEngine();privacy.SetExcluded(excluded);
+   LoadPrefs();ForgetOtherEngine();if(dndOurs&&!previewMode)QuietOff("меню запущено заново: прошлая запись уже закончилась");privacy.SetExcluded(excluded);
    window.SourceInitialized+=(s,e)=>InitWindow();
    window.Closing+=(s,e)=>{if(!exiting){e.Cancel=true;Hide();}};
    window.IsVisibleChanged+=(s,e)=>{if(window.IsVisible){clock.Start();Run(Refresh);if(ClipsOpen)Run(LoadClips);if(currentPage=="record")Run(RenderMixer);ShowKeysPanel();UpdateDisk();}else{clock.Stop();PausePlayer();if(keysPanel!=null)keysPanel.Hide();if(capturing!=null){capturing=null;ConfigureHotkeys();}}};
@@ -198,7 +199,19 @@ namespace ReplayOverlay {
   static void SelectTag(ComboBox box,string tag){foreach(ComboBoxItem item in box.Items)if(Convert.ToString(item.Tag)==tag){box.SelectedItem=item;return;}}
   static void SelectContent(ComboBox box,string text){foreach(ComboBoxItem item in box.Items)if(Convert.ToString(item.Content)==text){box.SelectedItem=item;return;}}
   // Запись, повтор, звук и выход — понятные события движка; остальное (сцены, источники, плагины) — события OBS как есть.
-  void OnRecordChanged(bool active,OutputPhase phase,string file){if(phase!=OutputPhase.Other)Log.Write(active?"Запись начата":"Запись остановлена");if(active&&!record)recordStart=DateTime.Now;record=active;UpdateControls();UpdateIndicator();if(phase==OutputPhase.Started){var g=gamesWatch.Current;Notify("Запись начата",g!=null?g.FileName:currentScene,ToastKind.Record);}if(!active&&file.Length>0){Track(file);Notify("Запись сохранена",Path.GetFileName(file),ToastKind.Ok);ClipsChanged();}}
+  // «Не беспокоить» на время записи: включается, только если был выключен, и возвращается, только если его включило меню.
+  void QuietOn(){
+   string now=QuietMode.Profile();
+   if(now==null){Warn("dnd","Не удалось узнать, включён ли «Не беспокоить» — уведомления могут попасть в запись");return;}
+   if(now!=QuietMode.Off){Log.Write("«Не беспокоить» уже включён — не трогаю");return;}
+   if(QuietMode.Set(QuietMode.DoNotDisturb)){dndOurs=true;SavePrefs();Log.Write("«Не беспокоить» включён на время записи");}
+   else Warn("dnd","Windows не дала включить «Не беспокоить» — уведомления могут попасть в запись. Включите его сами: Win+N.");}
+  void QuietOff(string why){
+   if(QuietMode.Profile()==QuietMode.DoNotDisturb&&!QuietMode.Set(QuietMode.Off))Log.Write("«Не беспокоить» не выключился ("+why+") — выключите его сами: Win+N");
+   else Log.Write("«Не беспокоить» выключен ("+why+")");
+   dndOurs=false;SavePrefs();}
+  void OnRecordChanged(bool active,OutputPhase phase,string file){
+   if(phase==OutputPhase.Started&&dndOnRecord)QuietOn();else if(phase==OutputPhase.Stopped&&dndOurs)QuietOff("запись остановлена");if(phase!=OutputPhase.Other)Log.Write(active?"Запись начата":"Запись остановлена");if(active&&!record)recordStart=DateTime.Now;record=active;UpdateControls();UpdateIndicator();if(phase==OutputPhase.Started){var g=gamesWatch.Current;Notify("Запись начата",g!=null?g.FileName:currentScene,ToastKind.Record);}if(!active&&file.Length>0){Track(file);Notify("Запись сохранена",Path.GetFileName(file),ToastKind.Ok);ClipsChanged();}}
   void OnReplayChanged(bool active,OutputPhase phase){replay=active;UpdateControls();
    if(phase==OutputPhase.Started){Log.Write("Буфер повтора включён");if(!replayWanted){replayWanted=true;SavePrefs();}}
    else if(phase==OutputPhase.Stopped){Log.Write("Буфер повтора выключен"+(busy?" (применение настроек)":exitStarted?" (движок закрывается)":""));if(!busy&&!exitStarted&&replayWanted){replayWanted=false;SavePrefs();}}UpdateIndicator();}
@@ -225,7 +238,7 @@ namespace ReplayOverlay {
    if(p.ContainsKey("audioMode"))audioMode=Json.Str(p,"audioMode");
    foreach(string k in new[]{"audioOnly","audioExcept"})if(p.TryGetValue(k,out raw)&&raw is object[]){var l=k=="audioOnly"?audioOnly:audioExcept;foreach(object x in (object[])raw){string v=Convert.ToString(x);if(v.Length>0&&!l.Contains(v))l.Add(v);}}
    if(p.TryGetValue("audio",out raw))audioState=AudioState.FromJson(Json.Obj(raw));
-   hideNotifications=Opt(p,"hideNotifications",false);if(p.TryGetValue("strict",out raw))strictLoaded=Json.Obj(raw);
+   hideNotifications=Opt(p,"hideNotifications",false);dndOnRecord=Opt(p,"dndOnRecord",false);dndOurs=Opt(p,"dndOurs",false);if(p.TryGetValue("strict",out raw))strictLoaded=Json.Obj(raw);
    if(p.TryGetValue("gamePrivacy",out raw))foreach(var kv in Json.Obj(raw))gamePrivacy[kv.Key]=Convert.ToString(kv.Value);
    if(p.ContainsKey("indicator"))indicatorMode=Json.Str(p,"indicator");if(p.ContainsKey("indicatorCorner"))indicatorCorner=Json.Str(p,"indicatorCorner");ffmpegPath=Json.Str(p,"ffmpeg");lastDirectory=Json.Str(p,"lastDirectory");previewSound=Opt(p,"previewSound",false);precise=Opt(p,"precise",false);toMp4=Opt(p,"toMp4",true);
    shotDir=Json.Str(p,"shotDir");if(p.ContainsKey("shotFormat"))shotFormat=Json.Str(p,"shotFormat");shotQuality=Math.Max(1,Math.Min(100,Json.Int(p,"shotQuality",90)));if(p.ContainsKey("shotSource"))shotSource=Json.Str(p,"shotSource");keysPanelOn=Opt(p,"keysPanel",true);toastsOn=Opt(p,"toasts",true);
@@ -245,7 +258,7 @@ namespace ReplayOverlay {
   static bool Opt(Dictionary<string,object> p,string key,bool fallback){return p.ContainsKey(key)?Json.Bool(p,key):fallback;}
   void SavePrefs(){if(resetting)return;try{var hk=new Dictionary<string,string>();foreach(var a in Actions){Hotkey k=HotkeyFor(a[0]);hk[a[0]]=k==null?"":k.Serialize();}
    AtomicWrite(prefsPath,Json.Encode(Json.D("hotkeys",hk,"excluded",excluded.OrderBy(x=>x,StringComparer.OrdinalIgnoreCase).ToArray(),"hiddenItems",hidden.ToArray(),"keepReplay",keepReplay,"diagnostics",diagnostics,"replayWanted",replayWanted,"autoGames",autoGames,"gameRestore",gameRestore,"gameAction",gameAction,"myGames",myGames.OrderBy(x=>x).ToArray(),"notGames",notGames.OrderBy(x=>x).ToArray(),"noCursor",noCursor.OrderBy(x=>x).ToArray(),"gameModes",gameModes,
-    "gameBackup",gameSession==null?null:Json.D("inputs",gameSession.Backup,"before",gameSession.SceneBefore,"by",gameSession.SceneByGame),"audioMode",audioMode,"audioOnly",audioOnly.ToArray(),"audioExcept",audioExcept.ToArray(),"audio",audioState.ToJson(),"hideNotifications",hideNotifications,"strict",strict==null?null:strict.ToJson(),"gamePrivacy",gamePrivacy,"indicator",indicatorMode,"indicatorCorner",indicatorCorner,"ffmpeg",ffmpegPath,"lastDirectory",lastDirectory,"previewSound",previewSound,"precise",precise,"toMp4",toMp4,"shotDir",shotDir,"shotFormat",shotFormat,"shotQuality",shotQuality,"shotSource",shotSource,"keysPanel",keysPanelOn,"replayDir",replayDir,"managed",managed.ToJson(),"cleanup",cleanupOn,"cleanupDays",cleanupDays,"cleanupGb",cleanupGb,"lowDiskGb",lowDiskGb,"toasts",toastsOn,"galleryGrid",gridView,"previewVolume",previewVolume,"clipGames",clipGames,"engine",EngineId)));}catch(Exception ex){Message("Настройки меню не сохранены: "+ex.Message);}}
+    "gameBackup",gameSession==null?null:Json.D("inputs",gameSession.Backup,"before",gameSession.SceneBefore,"by",gameSession.SceneByGame),"audioMode",audioMode,"audioOnly",audioOnly.ToArray(),"audioExcept",audioExcept.ToArray(),"audio",audioState.ToJson(),"hideNotifications",hideNotifications,"dndOnRecord",dndOnRecord,"dndOurs",dndOurs,"strict",strict==null?null:strict.ToJson(),"gamePrivacy",gamePrivacy,"indicator",indicatorMode,"indicatorCorner",indicatorCorner,"ffmpeg",ffmpegPath,"lastDirectory",lastDirectory,"previewSound",previewSound,"precise",precise,"toMp4",toMp4,"shotDir",shotDir,"shotFormat",shotFormat,"shotQuality",shotQuality,"shotSource",shotSource,"keysPanel",keysPanelOn,"replayDir",replayDir,"managed",managed.ToJson(),"cleanup",cleanupOn,"cleanupDays",cleanupDays,"cleanupGb",cleanupGb,"lowDiskGb",lowDiskGb,"toasts",toastsOn,"galleryGrid",gridView,"previewVolume",previewVolume,"clipGames",clipGames,"engine",EngineId)));}catch(Exception ex){Message("Настройки меню не сохранены: "+ex.Message);}}
   async Task<object[]> Items(string scene){object[] items;if(sceneItems.TryGetValue(scene,out items))return items;object raw;var r=await engine.Call("GetSceneItemList",Json.D("sceneName",scene));r.TryGetValue("sceneItems",out raw);items=(raw as object[])??new object[0];sceneItems[scene]=items;return items;}
   static bool Has(object[] items,string kind){return items.Any(i=>Json.Str(Json.Obj(i),"inputKind")==kind);}
   // «Только игра» — сцена с захватом игры без захвата монитора; «Игра и экран» — сцена с захватом монитора.
@@ -549,6 +562,9 @@ namespace ReplayOverlay {
    strict=new StrictPrivacy((r,d)=>engine.Call(r,d));
    if(strictLoaded!=null){strict.Load(strictLoaded);foreach(string k in strict.CoverItems.Keys)coverScenesOn.Add(k);} // после перезапуска «шторка» могла остаться — снимем при первой проверке
    privacy.Notifications=hideNotifications;
+   var db=C<CheckBox>("DndBox");db.IsChecked=dndOnRecord;db.Click+=(s,e)=>{dndOnRecord=db.IsChecked==true;SavePrefs();
+    if(dndOnRecord&&record)QuietOn();else if(!dndOnRecord&&dndOurs)QuietOff("настройка выключена");
+    Message(dndOnRecord?"Во время записи Windows не будет показывать уведомления и их звук":"Уведомления во время записи — как обычно");};
    var nb=C<CheckBox>("NotifyBox");nb.IsChecked=hideNotifications;nb.Click+=(s,e)=>{hideNotifications=nb.IsChecked==true;privacy.Notifications=hideNotifications;ExclusionsChanged();};
    var sb=C<CheckBox>("StrictBox");sb.IsChecked=strict.On;sb.Click+=(s,e)=>Run(()=>ToggleStrict(sb.IsChecked==true));}
   async Task ToggleStrict(bool on){var sb=C<CheckBox>("StrictBox");
@@ -607,6 +623,7 @@ namespace ReplayOverlay {
     new KeyValuePair<string,Action>("приватность",()=>{privacy.Dispose();RestoreHiddenNow();}),
     new KeyValuePair<string,Action>("уведомление",()=>{exiting=true;if(toasts!=null)toasts.CloseAll();if(keysPanel!=null)keysPanel.Dispose();diskTimer.Stop();}),
     new KeyValuePair<string,Action>("клавиши",UnregisterHotkeys),
+    new KeyValuePair<string,Action>("не беспокоить",()=>{if(dndOurs)QuietOff("меню закрыто");}),
     new KeyValuePair<string,Action>("движок",()=>{engine.Dispose();engine.Close();}), // своя копия закрывается вместе с меню; OBS пользователя — нет
     new KeyValuePair<string,Action>("трей",()=>{tray.Visible=false;tray.Dispose();}),
     new KeyValuePair<string,Action>("приложение",()=>{if(Application.Current!=null)Application.Current.Shutdown();})})

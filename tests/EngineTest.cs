@@ -122,6 +122,7 @@ static class EngineTest {
    Check(EngineSetup.EncoderFor(new[]{"Intel(R) UHD Graphics 770","NVIDIA GeForce RTX 4070"})=="obs_nvenc_h264_tex","Intel + NVIDIA → NVENC");
    Check(EngineSetup.EncoderFor(new[]{"AMD Radeon RX 7800 XT"})=="h264_texture_amf"&&EngineSetup.EncoderFor(new[]{"Intel(R) Arc(TM) A770 Graphics"})=="obs_qsv11_v2","AMD → AMF, Intel Arc → Quick Sync");
    Check(EngineSetup.EncoderFor(new[]{"Microsoft Basic Display Adapter"})=="obs_x264","без видеокарты — процессор");
+   string quiet=QuietMode.Profile();Check(quiet!=null&&quiet.StartsWith("Microsoft.QuietHoursProfile."),"режим «Не беспокоить» читается (сейчас "+quiet+"); тест его не меняет");
    string mon=EngineSetup.PrimaryMonitorId();Check(mon.StartsWith(@"\\?\DISPLAY#")&&mon.EndsWith("{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}"),"основной монитор: путь устройства, как в OBS");
    var col=EngineSetup.Collection(2560,1440);var srcs=((object[])col["sources"]).Select(Json.Obj).ToList();
    Check(Json.Str(col,"current_program_scene")==EngineSetup.GameScene&&srcs.Count(x=>Json.Str(x,"id")=="scene")==2&&Json.Str(Json.Obj(Json.Obj(col["AuxAudioDevice1"])["settings"]),"device_id")=="default","коллекция: две сцены, микрофон по умолчанию");
