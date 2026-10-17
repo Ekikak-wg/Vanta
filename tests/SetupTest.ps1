@@ -44,7 +44,8 @@ try {
  Check ($run -like '*ReplayOverlay.exe" --hidden --from=run') 'install: autostart entry with --hidden'
  Check (Test-Path (Join-Path $root 'Startup\Replay Overlay.lnk')) 'install: Startup folder shortcut (second autostart path)'
  $un = Get-ItemProperty "$reg\Uninstall\ReplayOBS" -ErrorAction SilentlyContinue
- Check ($un.DisplayName -eq 'Replay OBS' -and $un.DisplayVersion -match '^\d+\.\d+\.\d+$' -and $un.UninstallString -like '*uninstall.exe" --uninstall') 'install: Apps & features entry'
+ Check ($un.DisplayName -eq 'Replay OBS' -and $un.DisplayVersion -eq (Get-Item $Setup).VersionInfo.ProductVersion -and $un.UninstallString -like '*uninstall.exe" --uninstall') ('install: Apps & features entry, version ' + $un.DisplayVersion)
+ Check ($un.EstimatedSize -gt 1000) ('install: size includes menu and engine (' + $un.EstimatedSize + ' KB)')
  $hash = (Get-FileHash (Join-Path $install 'ReplayOverlay.exe')).Hash
  # Engine settings and menu settings that must survive updates.
  $cfg = Join-Path $engine 'config\obs-studio'; New-Item -ItemType Directory -Force $cfg | Out-Null
