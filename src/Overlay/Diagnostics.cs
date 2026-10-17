@@ -55,7 +55,7 @@ namespace ReplayOverlay {
 
   public static string Summary(StatsSample s) {
    var c=CultureInfo.GetCultureInfo("ru-RU");
-   return string.Format(c,"{0:0} к/с · CPU OBS {1:0}% · ОЗУ {2:0} МБ · свободно {3}",s.Fps,s.Cpu,s.MemoryMb,s.DiskMb>=1024*1024?(s.DiskMb/1024/1024).ToString("0.0",c)+" ТБ":(s.DiskMb/1024).ToString("0.0",c)+" ГБ");
+   return string.Format(c,"{0:0} к/с · процессор {1:0}% · ОЗУ {2:0} МБ · свободно {3}",s.Fps,s.Cpu,s.MemoryMb,s.DiskMb>=1024*1024?(s.DiskMb/1024/1024).ToString("0.0",c)+" ТБ":(s.DiskMb/1024).ToString("0.0",c)+" ГБ");
   }
 
   // Проблемы между двумя снимками: ключ (для ограничения частоты предупреждений) → текст.
