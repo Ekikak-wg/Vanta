@@ -160,7 +160,7 @@ namespace ReplayOverlay {
   // Ждём до 5 с, чтобы следующий запуск меню не застал копию на выходе (тогда новая не запустится, а старая вот-вот закроется).
   // Копию с правами администратора закрывает задача «Close engine»: её окно не принимает WM_CLOSE от меню.
   public List<string> VisibleWindows(){var l=new List<string>();foreach(var p in home.Running())l.AddRange(EngineWindows.VisibleTitles(p.Id));return l;}
-  public const string NotInstalled="Движок записи не установлен — запустите установщик Replay OBS ещё раз";
+  public const string NotInstalled="Движок записи не установлен — запустите установщик "+Brand.Name+" ещё раз";
   public void Close(){foreach(var p in home.Running()){try{
     bool asked=EngineWindows.Close(p.Id);
     if(!asked&&EngineTasks.Installed())asked=EngineTasks.Run(EngineTasks.Stop);

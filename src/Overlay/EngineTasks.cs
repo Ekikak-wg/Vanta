@@ -11,17 +11,19 @@ namespace ReplayOverlay {
  // Две задачи Планировщика «с наивысшими правами» создаются один раз — один запрос разрешения Windows:
  // «Engine» запускает движок, «Close engine» закрывает его (окно процесса администратора не принимает WM_CLOSE от обычных программ).
  public static class EngineTasks {
-  public const string Start=@"Replay OBS\Engine",Stop=@"Replay OBS\Close engine";
+  public const string Start=Brand.TaskStart,Stop=Brand.TaskStop;
   public const string InstallArg="--install-engine-tasks",RemoveArg="--remove-engine-tasks",CloseArg="--close-engine";
 
   public static bool Installed(){return Schtasks("/query /tn \""+Start+"\"")==0&&Schtasks("/query /tn \""+Stop+"\"")==0;}
   public static bool Run(string task){return Schtasks("/run /tn \""+task+"\"")==0;}
 
-  // Выполняется в процессе с правами администратора (ReplayOverlay.exe --install-engine-tasks).
+  // Выполняется в процессе с правами администратора (Vanta.exe --install-engine-tasks); заодно убираются задачи под прежним именем.
   public static void Install(EngineHome home,string overlayExe){
    Create(Start,home.Executable,home.HiddenArgs);
-   Create(Stop,overlayExe,CloseArg);}
-  public static void Remove(){Schtasks("/delete /tn \""+Start+"\" /f");Schtasks("/delete /tn \""+Stop+"\" /f");}
+   Create(Stop,overlayExe,CloseArg);
+   RemoveLegacy();}
+  public static void Remove(){Schtasks("/delete /tn \""+Start+"\" /f");Schtasks("/delete /tn \""+Stop+"\" /f");RemoveLegacy();}
+  static void RemoveLegacy(){Schtasks("/delete /tn \""+Brand.Legacy.TaskStart+"\" /f");Schtasks("/delete /tn \""+Brand.Legacy.TaskStop+"\" /f");}
 
   static void Create(string name,string exe,string args){
    string xml=Path.Combine(Path.GetTempPath(),"replay-task-"+Guid.NewGuid().ToString("N")+".xml");
@@ -34,7 +36,7 @@ namespace ReplayOverlay {
    Func<string,string> x=SecurityElement.Escape;
    return "<?xml version=\"1.0\" encoding=\"UTF-16\"?>\r\n"+
     "<Task version=\"1.2\" xmlns=\"http://schemas.microsoft.com/windows/2004/02/mit/task\">\r\n"+
-    " <RegistrationInfo><Description>Replay OBS: движок записи с повышенным приоритетом на видеокарте</Description></RegistrationInfo>\r\n"+
+    " <RegistrationInfo><Description>Vanta: движок записи с повышенным приоритетом на видеокарте</Description></RegistrationInfo>\r\n"+
     " <Principals><Principal id=\"Author\"><UserId>"+x(sid)+"</UserId><LogonType>InteractiveToken</LogonType><RunLevel>HighestAvailable</RunLevel></Principal></Principals>\r\n"+
     " <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>"+
     "<AllowHardTerminate>false</AllowHardTerminate><StartWhenAvailable>false</StartWhenAvailable><AllowStartOnDemand>true</AllowStartOnDemand><Enabled>true</Enabled>"+

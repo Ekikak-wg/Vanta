@@ -6,17 +6,17 @@ using System.Text;
 
 namespace ReplayOverlay {
  // Журнал работы меню: события, предупреждения, сводка каждые 5 минут. Паролей и настроек OBS сюда не пишем.
- // Файл logs\replay-overlay.log рядом с программой; при 1 МБ старый переименовывается в .1.log.
+ // Файл logs\vanta.log рядом с программой; при 1 МБ старый переименовывается в .1.log.
  public static class Log {
   static readonly object gate=new object();
   public static string Folder { get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"logs"); } }
-  public static string FilePath { get { return Path.Combine(Folder,"replay-overlay.log"); } }
+  public static string FilePath { get { return Path.Combine(Folder,Brand.LogFile); } }
   public static void Write(string text) {
    try {
     lock(gate) {
      Directory.CreateDirectory(Folder);
      var info=new FileInfo(FilePath);
-     if(info.Exists&&info.Length>1024*1024){string old=Path.Combine(Folder,"replay-overlay.1.log");if(File.Exists(old))File.Delete(old);File.Move(FilePath,old);}
+     if(info.Exists&&info.Length>1024*1024){string old=Path.Combine(Folder,Brand.LogOld);if(File.Exists(old))File.Delete(old);File.Move(FilePath,old);}
      File.AppendAllText(FilePath,DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss",CultureInfo.InvariantCulture)+"  "+text.Replace("\r"," ").Replace("\n"," ")+Environment.NewLine,new UTF8Encoding(false));
     }
    } catch { } // журнал не должен ломать меню

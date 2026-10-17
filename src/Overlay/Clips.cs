@@ -165,7 +165,7 @@ namespace ReplayOverlay {
   // Кадр для миниатюры через ffmpeg — кэш во временной папке, ключ — путь, размер и время изменения.
   public static string Thumbnail(string ffmpeg,ClipFile clip,int width) {
    if(ffmpeg==null)return null;
-   try{string dir=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"ReplayOBS-thumbs");Directory.CreateDirectory(dir);
+   try{string dir=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"Vanta-thumbs");Directory.CreateDirectory(dir);
     string key;using(var sha=SHA1.Create())key=BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(clip.Path.ToLowerInvariant()+"|"+clip.Size+"|"+clip.Modified.Ticks+"|"+width))).Replace("-","");
     string jpg=System.IO.Path.Combine(dir,key+".jpg");if(File.Exists(jpg))return jpg;
     double at=clip.Seconds>4?2:clip.Seconds>0?clip.Seconds/2:1;

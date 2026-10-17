@@ -165,7 +165,7 @@ namespace ReplayOverlay {
   void PickReplayFolder(){string chosen;dialogOpen=true;
    try{using(var d=new WF.FolderBrowserDialog{Description="Куда переносить мгновенные повторы",ShowNewFolderButton=true,SelectedPath=replayDir.Length>0?replayDir:ClipsDir}){if(d.ShowDialog(new Owner(handle))!=WF.DialogResult.OK)return;chosen=d.SelectedPath;}}
    finally{dialogOpen=false;window.Activate();}
-   string probe=Path.Combine(chosen,".replay-overlay-write-test");try{File.WriteAllText(probe,"");File.Delete(probe);}catch(Exception ex){Message("В эту папку нельзя записывать: "+ex.Message);return;}
+   string probe=Path.Combine(chosen,".vanta-write-test");try{File.WriteAllText(probe,"");File.Delete(probe);}catch(Exception ex){Message("В эту папку нельзя записывать: "+ex.Message);return;}
    replayDir=string.Equals(chosen.TrimEnd('\\'),ClipsDir.TrimEnd('\\'),StringComparison.OrdinalIgnoreCase)?"":chosen;SavePrefs();UpdateStorageUi();Message("Повторы: "+(replayDir.Length>0?replayDir:"в папке записей"));}
   // Повтор сохранён OBS — переносим в папку повторов (если задана) и берём на учёт.
   string AfterReplaySaved(string path){

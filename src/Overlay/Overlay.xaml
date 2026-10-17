@@ -1,5 +1,5 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- Title="Replay Overlay" Width="560" Height="800" WindowStartupLocation="Manual" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" FontFamily="Segoe UI" Foreground="#F5F6F7" UseLayoutRounding="True">
+ Title="Vanta" Width="560" Height="800" WindowStartupLocation="Manual" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" FontFamily="Segoe UI" Foreground="#F5F6F7" UseLayoutRounding="True">
  <Window.Resources>
   <!-- Палитра: все цвета здесь, чтобы потом сделать темы. -->
   <SolidColorBrush x:Key="Bg" Color="#EB0D0F13"/>
@@ -110,7 +110,7 @@
     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <Grid Width="30" Height="30" VerticalAlignment="Center"><Ellipse Stroke="#00D46A" StrokeThickness="3"/><Ellipse Width="12" Height="12" Fill="#00D46A"/></Grid>
     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
-     <TextBlock FontSize="20" FontWeight="SemiBold"><Run Text="Replay "/><Run Text="OBS" Foreground="#00D46A"/></TextBlock>
+     <TextBlock FontSize="20" FontWeight="SemiBold"><Run Text="Van"/><Run Text="ta" Foreground="#00D46A"/></TextBlock>
      <StackPanel Orientation="Horizontal" Margin="1,2,0,0"><Ellipse x:Name="ConnectionDot" Width="6" Height="6" Fill="#D6A45B" Margin="0,0,6,0" VerticalAlignment="Center"/><TextBlock x:Name="ConnectionLabel" Text="Запуск движка записи…" Foreground="#9CA3AF" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="280"/></StackPanel>
     </StackPanel>
     <TextBlock x:Name="ShortcutLabel" Grid.Column="2" Text="" Foreground="#00D46A" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>

@@ -13,7 +13,7 @@ static class UiSnapshot {
  static void Pump(int ms){var frame=new DispatcherFrame();var t=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(ms)};t.Tick+=(s,e)=>{t.Stop();frame.Continue=false;};t.Start();Dispatcher.PushFrame(frame);}
  [STAThread] static int Main(string[] args){
   string outDir=args.Length>0?args[0]:AppDomain.CurrentDomain.BaseDirectory;Directory.CreateDirectory(outDir);
-  string prefs=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"overlay-settings.json");
+  string prefs=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,Brand.Settings);
   File.WriteAllText(prefs,Json.Encode(Json.D("autoGames",false,"indicator","off","keysPanel",false,"lastDirectory",Path.GetTempPath(),"hotkeys",Json.D("menu","","save","","record","","shot",""))));
   try{
    var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};

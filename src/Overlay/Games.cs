@@ -28,7 +28,7 @@ namespace ReplayOverlay {
    "discord","telegram","slack","teams","ms-teams","zoom","skype","whatsapp","viber",
    "obs64","obs32","streamlabs obs","vlc","mpc-hc64","mpc-hc","mpc-be64","potplayermini64","potplayermini","wmplayer","mpv","kmplayer",
    "applicationframehost","textinputhost","shellexperiencehost","searchhost","startmenuexperiencehost","lockapp","taskmgr","mstsc","pickerhost","powerpnt","photos","snippingtool","screenclippinghost",
-   "code","devenv","notepad","sublime_text","claude","chatgpt","replayoverlay","overwolf","nvidia overlay","nvcontainer","sonar","wallpaper32","wallpaper64","wallpaperservice32",
+   "code","devenv","notepad","sublime_text","claude","chatgpt","vanta","replayoverlay","overwolf","nvidia overlay","nvcontainer","sonar","wallpaper32","wallpaper64","wallpaperservice32",
    "unitycrashhandler64","unitycrashhandler32","crashreportclient","easyanticheat_eos_setup","powertoys","powertoys.quickaccess"};
 
   // Папки игровых библиотек. Сами лаунчеры лежат рядом, поэтому их папки исключены отдельно.

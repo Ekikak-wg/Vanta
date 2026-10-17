@@ -38,7 +38,7 @@ namespace ReplayOverlay {
   [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr h);
   static string ExePath(uint pid){IntPtr h=OpenProcess(0x1000,false,pid);if(h==IntPtr.Zero)return "";try{var s=new StringBuilder(1024);int n=s.Capacity;return QueryFullProcessImageName(h,0,s,ref n)?s.ToString():"";}finally{CloseHandle(h);}}
   // Служебные процессы Windows, которые не имеет смысла предлагать.
-  static readonly HashSet<string> Skip=new HashSet<string>(StringComparer.OrdinalIgnoreCase){"explorer","ApplicationFrameHost","TextInputHost","ShellExperienceHost","ShellHost","StartMenuExperienceHost","SearchHost","SystemSettings","LockApp","dwm","ReplayOverlay","obs64","audiodg","svchost","csrss"};
+  static readonly HashSet<string> Skip=new HashSet<string>(StringComparer.OrdinalIgnoreCase){"explorer","ApplicationFrameHost","TextInputHost","ShellExperienceHost","ShellHost","StartMenuExperienceHost","SearchHost","SystemSettings","LockApp","dwm","Vanta","ReplayOverlay","obs64","audiodg","svchost","csrss"};
 
   // Программы с окнами и программы, которые сейчас выводят звук. Иконки — из exe (замороженные, можно отдавать в окно).
   public static List<AppEntry> Running(){

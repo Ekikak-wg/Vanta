@@ -43,10 +43,10 @@ namespace ReplayOverlay {
   // Архив для диагностики: журналы меню, последние журналы OBS, настройки меню, сведения о системе. Настройки WebSocket (пароль) не берём.
   async Task ExportDiagnostics(){
    string target;dialogOpen=true;
-   try{using(var d=new WF.SaveFileDialog{Title="Куда сохранить диагностику",Filter="Архив ZIP|*.zip",FileName="ReplayOBS-диагностика-"+DateTime.Now.ToString("yyyy-MM-dd_HH-mm")+".zip",InitialDirectory=Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)}){if(d.ShowDialog(new Owner(handle))!=WF.DialogResult.OK)return;target=d.FileName;}}
+   try{using(var d=new WF.SaveFileDialog{Title="Куда сохранить диагностику",Filter="Архив ZIP|*.zip",FileName=Brand.Name+"-диагностика-"+DateTime.Now.ToString("yyyy-MM-dd_HH-mm")+".zip",InitialDirectory=Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)}){if(d.ShowDialog(new Owner(handle))!=WF.DialogResult.OK)return;target=d.FileName;}}
    finally{dialogOpen=false;window.Activate();}
    var info=new StringBuilder();
-   info.AppendLine("Replay OBS "+Assembly.GetExecutingAssembly().GetName().Version.ToString(3));
+   info.AppendLine(Brand.Name+" "+Assembly.GetExecutingAssembly().GetName().Version.ToString(3));
    info.AppendLine("Windows "+Convert.ToString(Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion","CurrentBuildNumber","?"))+(Environment.Is64BitOperatingSystem?" x64":""));
    info.AppendLine("Движок записи: "+(engine.Connected?"подключён":engine.Home.Installed?"не подключён":"не установлен"));
    if(engine.Connected){try{info.AppendLine(await engine.Version());}catch(Exception){}}
@@ -59,7 +59,7 @@ namespace ReplayOverlay {
     using(var zip=ZipFile.Open(target,ZipArchiveMode.Create)){
      var e=zip.CreateEntry("система.txt");using(var w=new StreamWriter(e.Open(),new UTF8Encoding(true)))w.Write(text);
      if(Directory.Exists(logs))foreach(var f in Directory.GetFiles(logs,"*.log"))AddShared(zip,f,"меню/"+Path.GetFileName(f));
-     if(File.Exists(settings))AddShared(zip,settings,"меню/overlay-settings.json");
+     if(File.Exists(settings))AddShared(zip,settings,"меню/"+Brand.Settings);
      if(Directory.Exists(obsLogs))foreach(var f in new DirectoryInfo(obsLogs).GetFiles("*.txt").OrderByDescending(x=>x.LastWriteTime).Take(3))AddShared(zip,f.FullName,"engine/"+f.Name);}});
    Log.Write("Диагностика сохранена: "+Path.GetFileName(target));Message("Диагностика сохранена: "+target);
    Process.Start(new ProcessStartInfo("explorer.exe","/select,\""+target+"\""){UseShellExecute=true});}
@@ -71,7 +71,7 @@ namespace ReplayOverlay {
   void ResetSettings(){
    if(strict!=null&&strict.On){Message("Сначала выключите строгую защиту в «Приватности» — иначе её фильтр и «шторка» останутся в движке записи");return;}
    MessageBoxResult ok;dialogOpen=true;
-   try{ok=MessageBox.Show(window,"Вернуть все настройки меню к исходным?\n\nСбросятся горячие клавиши, исключения, списки игр, папки повторов и скриншотов, автоочистка и вид галереи. Настройки, сцены и источники движка записи не меняются; источники звука, созданные меню, останутся в нём.\n\nСтарые настройки сохранятся в overlay-settings.json.reset-backup. Меню перезапустится.","Replay — сброс настроек",MessageBoxButton.OKCancel,MessageBoxImage.Warning);}
+   try{ok=MessageBox.Show(window,"Вернуть все настройки меню к исходным?\n\nСбросятся горячие клавиши, исключения, списки игр, папки повторов и скриншотов, автоочистка и вид галереи. Настройки, сцены и источники движка записи не меняются; источники звука, созданные меню, останутся в нём.\n\nСтарые настройки сохранятся в "+Brand.Settings+".reset-backup. Меню перезапустится.","Replay — сброс настроек",MessageBoxButton.OKCancel,MessageBoxImage.Warning);}
    finally{dialogOpen=false;window.Activate();}
    if(ok!=MessageBoxResult.OK)return;
    try{RestoreHiddenNow();if(File.Exists(prefsPath))File.Copy(prefsPath,prefsPath+".reset-backup",true);

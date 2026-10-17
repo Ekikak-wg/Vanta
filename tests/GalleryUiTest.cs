@@ -31,7 +31,7 @@ static class GalleryUiTest {
   string shots=args.Length>0?args[0]:AppDomain.CurrentDomain.BaseDirectory;Directory.CreateDirectory(shots);
   string ff=Ffmpeg.Find(null);if(ff==null){Console.WriteLine("INFO  ffmpeg не найден — тест пропущен");return 0;}
   string dir=Path.Combine(Path.GetTempPath(),"ReplayOBS-GalleryUi-"+Guid.NewGuid().ToString("N").Substring(0,8));Directory.CreateDirectory(dir);
-  string prefs=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"overlay-settings.json");
+  string prefs=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,Brand.Settings);
   try{
    Run(ff,"-hide_banner -v error -y -f lavfi -i testsrc2=size=640x360:rate=60:duration=8 -f lavfi -i sine=frequency=440:duration=8 -f lavfi -i sine=frequency=880:duration=8 -map 0 -map 1 -map 2 -c:v libx264 -preset ultrafast -g 120 -pix_fmt yuv420p -c:a aac \""+Path.Combine(dir,"Replay 2026-10-14_10-00-00.mkv")+"\"");
    Run(ff,"-hide_banner -v error -y -f lavfi -i smptebars=size=640x360:rate=30:duration=5 -f lavfi -i sine=duration=5 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac \""+Path.Combine(dir,"2026-10-13_21-30-00.mp4")+"\"");

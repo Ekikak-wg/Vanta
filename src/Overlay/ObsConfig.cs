@@ -2,11 +2,30 @@ using System;
 using System.IO;
 
 namespace ReplayOverlay {
+ // Название программы и все имена, которые от него зависят: файлы, папки, реестр, задачи, объекты синхронизации.
+ public static class Brand {
+  public const string Name="Vanta";
+  public const string Exe="Vanta.exe",Process="Vanta",Setup="Vanta-Setup.exe";
+  public const string Settings="vanta-settings.json",LogFile="vanta.log",LogOld="vanta.1.log";
+  public const string InstallFolder="Vanta",Shortcut="Vanta.lnk",RunValue="Vanta",UninstallKey="Vanta";
+  public const string TaskStart=@"Vanta\Engine",TaskStop=@"Vanta\Close engine";
+  public const string Repo="https://github.com/erteterya/Replay-OBS"; // репозиторий переименуется вместе с релизом
+  public const string Tagline="Меню мгновенного повтора поверх игр";
+
+  // Прежнее имя (Replay OBS, до 1.7): установщик переносит такую установку и убирает её следы.
+  public static class Legacy {
+   public const string InstallFolder="Replay OBS",Exe="ReplayOverlay.exe",Process="ReplayOverlay",Settings="overlay-settings.json";
+   public const string Shortcut="Replay Overlay.lnk",RunValue="Replay Overlay",UninstallKey="ReplayOBS",StartMenu="Replay OBS";
+   public const string TaskStart=@"Replay OBS\Engine",TaskStop=@"Replay OBS\Close engine";
+   public const string Exit=@"Local\ReplayOverlay.Exit";
+  }
+ }
+
  // Имена объектов, через которые общаются копии меню и установщик.
  public static class Names {
-  public const string Mutex=@"Local\ReplayOverlay.Instance";
-  public const string Show=@"Local\ReplayOverlay.Show";
-  public const string Exit=@"Local\ReplayOverlay.Exit";
+  public const string Mutex=@"Local\Vanta.Instance";
+  public const string Show=@"Local\Vanta.Show";
+  public const string Exit=@"Local\Vanta.Exit";
  }
 
  // Где лежат файлы движка записи (своей копии OBS): журналы, профиль, коллекция сцен. Только чтение.

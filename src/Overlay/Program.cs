@@ -41,7 +41,7 @@ namespace ReplayOverlay {
   readonly Dictionary<string,Hotkey> keys=new Dictionary<string,Hotkey>();readonly Dictionary<string,bool> keyBusy=new Dictionary<string,bool>();
   string capturing;
   int duration=300; string directory="",currentScene="",lastSaved=""; DateTime recordStart;
-  readonly string prefsPath=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"overlay-settings.json");
+  readonly string prefsPath=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,Brand.Settings);
   // Фоновая работа: запуск OBS, удержание буфера, диагностика.
   bool keepReplay=true,diagnostics=true,replayWanted=true,exitStarted,wasConnected;int connections;
   readonly DispatcherTimer statsTimer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(10)};
@@ -92,7 +92,7 @@ namespace ReplayOverlay {
    C<Button>("ApplyButton").Click+=(s,e)=>Run(Apply);
    C<ComboBox>("SceneBox").SelectionChanged+=(s,e)=>{if(!loading&&C<ComboBox>("SceneBox").SelectedItem!=null)Run(async()=>{EnsureReady();await engine.Call("SetCurrentProgramScene",Json.D("sceneName",Convert.ToString(C<ComboBox>("SceneBox").SelectedItem)));});};
    statsTimer.Tick+=(s,e)=>PollStats();BindBackgroundOptions();BindGames();BindAudio();BindPrivacy();BindClips();BindIndicator();BindShell();BindVideo();BindPicker();BindSystem();clock.Interval=TimeSpan.FromSeconds(1);clock.Tick+=(s,e)=>{if(record)C<TextBlock>("RecordState").Text=(DateTime.Now-recordStart).ToString(@"hh\:mm\:ss");};
-   tray=new WF.NotifyIcon{Icon=AppIcon(),Visible=true,Text="Replay Overlay"};
+   tray=new WF.NotifyIcon{Icon=AppIcon(),Visible=true,Text=Brand.Name};
    var menu=new WF.ContextMenuStrip();menu.Items.Add("Открыть меню",null,(s,e)=>Show());menu.Items.Add("Сохранить повтор",null,(s,e)=>Run(SaveReplay));menu.Items.Add("Сделать скриншот",null,(s,e)=>Run(TakeScreenshot));menu.Items.Add("Галерея",null,(s,e)=>{Show();Ui(OpenClips);});menu.Items.Add("Открыть журнал",null,(s,e)=>OpenLog());menu.Items.Add(new WF.ToolStripSeparator());menu.Items.Add("Выйти из оверлея",null,(s,e)=>Exit());tray.ContextMenuStrip=menu;tray.DoubleClick+=(s,e)=>Show();
    engine.ConnectionChanged+=connected=>Ui(()=>{C<TextBlock>("ConnectionLabel").Text=connected?"Движок записи готов":engine.Home.Installed?"Движок записи запускается…":"Движок записи не установлен";C<Ellipse>("ConnectionDot").Fill=Brush(connected?"#8DCC38":"#D6A45B");UpdateControls();privacy.Enabled=connected&&(excluded.Count>0||hideNotifications);OnConnection(connected);if(connected){sceneItems.Clear();Run(RefreshWhenReady);}});
    engine.Status+=message=>Ui(()=>Message(message));
@@ -105,7 +105,7 @@ namespace ReplayOverlay {
    window.Loaded+=(s,e)=>Position();
    UpdateControls();
   }
-  public void StartHidden(){new WindowInteropHelper(window).EnsureHandle();string shortcut=C<TextBlock>("ShortcutLabel").Text;Notify("Replay Overlay запущен",shortcut.Length>0?shortcut+" — открыть меню":"Меню — через значок в трее");}
+  public void StartHidden(){new WindowInteropHelper(window).EnsureHandle();string shortcut=C<TextBlock>("ShortcutLabel").Text;Notify(Brand.Name+" запущена",shortcut.Length>0?shortcut+" — открыть меню":"Меню — через значок в трее");}
   T C<T>(string name) where T:FrameworkElement{return (T)window.FindName(name);}
   void SettingsPage(bool open){ShowPage(open?"settings":"record");}
   static Brush Brush(string color){return (Brush)new BrushConverter().ConvertFromString(color);}
@@ -211,7 +211,8 @@ namespace ReplayOverlay {
    else if(type=="SceneItemCreated"||type=="SceneItemRemoved"||type=="SceneNameChanged"||type=="SceneCreated"||type=="SceneRemoved"){sceneItems.Clear();Run(Refresh);}
    else if(type=="CurrentProfileChanged"||type=="CurrentSceneCollectionChanged"){sceneItems.Clear();Run(Refresh);}
   }
-  void LoadPrefs(){foreach(var a in Actions)keys[a[0]]=Hotkey.Parse(a[2]);try{if(!File.Exists(prefsPath))return;var p=Json.Decode(File.ReadAllText(prefsPath));preferAlt=!p.ContainsKey("altZ")||Json.Bool(p,"altZ");object raw;
+  void LoadPrefs(){try{string old=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,Brand.Legacy.Settings);if(!File.Exists(prefsPath)&&File.Exists(old))File.Move(old,prefsPath);}catch(Exception ex){Log.Write("Настройки под прежним именем не перенесены: "+ex.Message);}
+   foreach(var a in Actions)keys[a[0]]=Hotkey.Parse(a[2]);try{if(!File.Exists(prefsPath))return;var p=Json.Decode(File.ReadAllText(prefsPath));preferAlt=!p.ContainsKey("altZ")||Json.Bool(p,"altZ");object raw;
    if(p.TryGetValue("hotkeys",out raw)){var stored=Json.Obj(raw);foreach(var a in Actions)if(stored.ContainsKey(a[0]))keys[a[0]]=Hotkey.Parse(Json.Str(stored,a[0]));}
    else if(!preferAlt)keys["menu"]=Hotkey.Parse("Ctrl+Alt+Z"); // старая настройка «Клавиши»
    if(p.TryGetValue("excluded",out raw)&&raw is object[])foreach(object x in (object[])raw)if(Convert.ToString(x).Length>0)excluded.Add(Convert.ToString(x));
@@ -251,7 +252,7 @@ namespace ReplayOverlay {
   async Task DetectModeScenes(List<string> names){gameScene=null;desktopScene=null;foreach(string n in names){if(n==StrictPrivacy.CoverScene)continue;var items=await Items(n);if(desktopScene==null&&Has(items,"monitor_capture"))desktopScene=n;else if(gameScene==null&&Has(items,"game_capture")&&!Has(items,"monitor_capture"))gameScene=n;}}
   async Task SetMode(bool desktop){EnsureReady();string scene=desktop?desktopScene:gameScene;if(scene==null)throw new InvalidOperationException(desktop?"Нет сцены с захватом экрана":"Нет сцены только с захватом игры");if(scene!=currentScene)await engine.Call("SetCurrentProgramScene",Json.D("sceneName",scene));}
   void UpdateMode(){bool game=currentScene!=null&&currentScene==gameScene,desk=currentScene!=null&&currentScene==desktopScene;C<Button>("ModeGameButton").Background=Brush(game?"#27351C":"#1D2227");C<Button>("ModeDesktopButton").Background=Brush(desk?"#27351C":"#1D2227");C<TextBlock>("ModeHint").Text=game?"Записывается только окно игры: Alt+Tab, рабочий стол и другие программы в запись не попадут.":desk?"Записывается весь монитор: после Alt+Tab видно всё, кроме приложений из исключений.":"Сейчас выбрана сцена «"+currentScene+"».";UpdatePrivacyLabel();}
-  void UpdatePrivacyLabel(){var label=C<TextBlock>("PrivacyLabel");string now=privacy.Visible;bool covering=hidden.Count>0||coverOn;if(covering&&now.Length==0)now="весь экран (правило игры)";if(excluded.Count==0&&!hideNotifications&&GamePrivacy()==""){label.Visibility=Visibility.Collapsed;}else{label.Visibility=Visibility.Visible;label.Text=covering?"Сейчас скрыто от записи: "+now+" — в записи только игра":"Исключения: "+string.Join(", ",excluded.OrderBy(x=>x,StringComparer.OrdinalIgnoreCase).Concat(hideNotifications?new[]{PrivacyWatcher.NotificationsLabel}:new string[0]))+(currentScene==desktopScene?"":" · действуют в режиме «Игра и экран»");label.Foreground=Brush(covering?"#F2C46D":"#8E99A4");}string tip="Replay Overlay"+(covering?" · скрыто: "+now:"");if(tray!=null)tray.Text=tip.Length>63?tip.Substring(0,63):tip;}
+  void UpdatePrivacyLabel(){var label=C<TextBlock>("PrivacyLabel");string now=privacy.Visible;bool covering=hidden.Count>0||coverOn;if(covering&&now.Length==0)now="весь экран (правило игры)";if(excluded.Count==0&&!hideNotifications&&GamePrivacy()==""){label.Visibility=Visibility.Collapsed;}else{label.Visibility=Visibility.Visible;label.Text=covering?"Сейчас скрыто от записи: "+now+" — в записи только игра":"Исключения: "+string.Join(", ",excluded.OrderBy(x=>x,StringComparer.OrdinalIgnoreCase).Concat(hideNotifications?new[]{PrivacyWatcher.NotificationsLabel}:new string[0]))+(currentScene==desktopScene?"":" · действуют в режиме «Игра и экран»");label.Foreground=Brush(covering?"#F2C46D":"#8E99A4");}string tip=Brand.Name+(covering?" · скрыто: "+now:"");if(tray!=null)tray.Text=tip.Length>63?tip.Substring(0,63):tip;}
   void ExclusionsChanged(){SavePrefs();privacy.SetExcluded(excluded);privacy.Enabled=engine.Connected&&(excluded.Count>0||hideNotifications);privacy.Kick();RenderExcluded();FillApps();UpdatePrivacyLabel();ApplyPrivacy();}
   void RenderExcluded(){Run(RenderPrivacyWarnings);var list=C<StackPanel>("ExcludedList");list.Children.Clear();if(excluded.Count==0){list.Children.Add(new TextBlock{Text="Список пуст",Foreground=Brush("#7F8A96"),FontSize=12,Margin=new Thickness(0,0,0,4)});return;}
    foreach(string name in excluded.OrderBy(x=>x,StringComparer.OrdinalIgnoreCase)){var row=new Grid{Margin=new Thickness(0,0,0,6)};row.ColumnDefinitions.Add(new ColumnDefinition());row.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});row.Children.Add(new TextBlock{Text=name+".exe",FontSize=13,Foreground=Brush("#E6EBDD"),VerticalAlignment=VerticalAlignment.Center,TextTrimming=TextTrimming.CharacterEllipsis});var remove=new Button{Content="Убрать",Padding=new Thickness(10,5,10,5),FontSize=11,ToolTip="Снова записывать "+name+".exe"};Grid.SetColumn(remove,1);string n=name;remove.Click+=(s,e)=>{excluded.Remove(n);ExclusionsChanged();};row.Children.Add(remove);list.Children.Add(row);}}
@@ -432,7 +433,7 @@ namespace ReplayOverlay {
   // «Все, кроме»: каждые 2 с — новые программы со звуком получают свой источник. Игры, OBS и программы со своим источником пропускаются.
   async void WatchSessions(){
    if(audioBusy||!engine.Connected||audioMode!="except")return;audioBusy=true;
-   try{var active=AudioSessions.Active();var skip=new HashSet<string>(StringComparer.OrdinalIgnoreCase){"obs64","obs32","ReplayOverlay","audiodg"};
+   try{var active=AudioSessions.Active();var skip=new HashSet<string>(StringComparer.OrdinalIgnoreCase){"obs64","obs32",Brand.Process,"audiodg"};
     if(discordHasSource)skip.Add("Discord");var g=gamesWatch.Current;if(g!=null)skip.Add(g.Exe);
     foreach(var kv in active)if(myGames.Contains(kv.Key)||GameRules.Library(kv.Value)!=null)skip.Add(kv.Key);
     var missing=AudioSetup.MissingApps(active.Keys,new HashSet<string>(audioExcept,StringComparer.OrdinalIgnoreCase),skip,audioState);
@@ -586,7 +587,7 @@ namespace ReplayOverlay {
   async Task PickFolder(){EnsureReady();if((await engine.Record()).Active)throw new InvalidOperationException("Сначала остановите запись");
    string chosen;dialogOpen=true;try{using(var dialog=new WF.FolderBrowserDialog{Description="Куда сохранять повторы и записи",ShowNewFolderButton=true,SelectedPath=directory}){if(dialog.ShowDialog(new Owner(handle))!=WF.DialogResult.OK)return;chosen=dialog.SelectedPath;}}finally{dialogOpen=false;window.Activate();}
    if(string.Equals(chosen.TrimEnd('\\'),directory.TrimEnd('\\'),StringComparison.OrdinalIgnoreCase))return;
-   string probe=Path.Combine(chosen,".replay-overlay-write-test");try{File.WriteAllText(probe,"");File.Delete(probe);}catch(Exception ex){throw new InvalidOperationException("В эту папку нельзя записывать: "+ex.Message);}
+   string probe=Path.Combine(chosen,".vanta-write-test");try{File.WriteAllText(probe,"");File.Delete(probe);}catch(Exception ex){throw new InvalidOperationException("В эту папку нельзя записывать: "+ex.Message);}
    bool resume=await engine.ReplayActive()==true;busy=true;UpdateControls();
    try{await engine.SetRecordDirectory(chosen);
     if(resume)await engine.RestartReplay();
@@ -624,7 +625,7 @@ namespace ReplayOverlay {
    var waitArg=args.FirstOrDefault(a=>a.StartsWith("--wait-pid="));int waitPid;
    if(waitArg!=null&&int.TryParse(waitArg.Substring(11),out waitPid)){try{using(var old=Process.GetProcessById(waitPid))old.WaitForExit(15000);}catch(ArgumentException){}}
    bool fresh;using(var mutex=new Mutex(true,Names.Mutex,out fresh))using(var wake=new EventWaitHandle(false,EventResetMode.AutoReset,Names.Show))using(var quit=new EventWaitHandle(false,EventResetMode.AutoReset,Names.Exit)){
-   if(!fresh){if(!args.Contains("--hidden")){Native.AllowSetForegroundWindow(-1);wake.Set();}return;}var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};AppDomain.CurrentDomain.UnhandledException+=(s,e)=>Log.Write("Сбой меню: "+e.ExceptionObject);Overlay overlay=null;app.DispatcherUnhandledException+=(s,e)=>{e.Handled=true;Log.Write("Ошибка меню: "+e.Exception);MessageBox.Show("Ошибка оверлея: "+e.Exception.Message,"Replay Overlay");};try{Overlay.StartedFrom=args.FirstOrDefault(a=>a.StartsWith("--from="))??"";overlay=new Overlay(args.Contains("--preview"));var listener=new Thread(()=>{while(true){wake.WaitOne();overlay.Show();}}){IsBackground=true};listener.Start();var stopper=new Thread(()=>{quit.WaitOne();overlay.RequestExit();}){IsBackground=true};stopper.Start();if(args.Contains("--hidden")){overlay.StartHidden();app.Run();}else app.Run(overlay.Window);}catch(Exception ex){MessageBox.Show("Оверлей не запустился: "+ex.Message,"Replay Overlay");}finally{if(overlay!=null)overlay.Exit();}
+   if(!fresh){if(!args.Contains("--hidden")){Native.AllowSetForegroundWindow(-1);wake.Set();}return;}var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};AppDomain.CurrentDomain.UnhandledException+=(s,e)=>Log.Write("Сбой меню: "+e.ExceptionObject);Overlay overlay=null;app.DispatcherUnhandledException+=(s,e)=>{e.Handled=true;Log.Write("Ошибка меню: "+e.Exception);MessageBox.Show("Ошибка меню: "+e.Exception.Message,Brand.Name);};try{Overlay.StartedFrom=args.FirstOrDefault(a=>a.StartsWith("--from="))??"";overlay=new Overlay(args.Contains("--preview"));var listener=new Thread(()=>{while(true){wake.WaitOne();overlay.Show();}}){IsBackground=true};listener.Start();var stopper=new Thread(()=>{quit.WaitOne();overlay.RequestExit();}){IsBackground=true};stopper.Start();if(args.Contains("--hidden")){overlay.StartHidden();app.Run();}else app.Run(overlay.Window);}catch(Exception ex){MessageBox.Show("Меню не запустилось: "+ex.Message,Brand.Name);}finally{if(overlay!=null)overlay.Exit();}
   }}
  }
 }

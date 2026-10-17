@@ -20,25 +20,30 @@ using ReplayOverlay;
 namespace ReplaySetup {
  // Куда ставить. В тестовом режиме (--test-root) всё уходит в отдельную папку и ветку реестра.
  sealed class Paths {
-  public string InstallDir,StartMenuDir,DesktopDir,StartupDir,RegistryRoot; public bool Test;
-  public string StartupShortcut { get { return Path.Combine(StartupDir,"Replay Overlay.lnk"); } }
-  public string Exe { get { return Path.Combine(InstallDir,"ReplayOverlay.exe"); } }
+  public string InstallDir,StartMenuDir,DesktopDir,StartupDir,RegistryRoot,LegacyDir,LegacyStartMenuDir; public bool Test;
+  public string StartupShortcut { get { return Path.Combine(StartupDir,Brand.Shortcut); } }
+  public string DesktopShortcut { get { return Path.Combine(DesktopDir,Brand.Shortcut); } }
+  public string Exe { get { return Path.Combine(InstallDir,Brand.Exe); } }
   public string Uninstaller { get { return Path.Combine(InstallDir,"uninstall.exe"); } }
   public string EngineDir { get { return Path.Combine(InstallDir,"engine"); } }
   public string EngineMarker { get { return Path.Combine(EngineDir,"replay-engine.json"); } }
   public string RunKey { get { return RegistryRoot+@"\Run"; } }
-  public string UninstallKey { get { return RegistryRoot+@"\Uninstall\ReplayOBS"; } }
+  public string UninstallKey { get { return RegistryRoot+@"\Uninstall\"+Brand.UninstallKey; } }
+  public string LegacyUninstallKey { get { return RegistryRoot+@"\Uninstall\"+Brand.Legacy.UninstallKey; } }
+  public string LegacyEngineDir { get { return Path.Combine(LegacyDir,"engine"); } }
   public static Paths Real() {
    return new Paths{
-    InstallDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Programs\Replay OBS"),
-    StartMenuDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),"Replay OBS"),
+    InstallDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Programs\"+Brand.InstallFolder),
+    StartMenuDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),Brand.Name),
+    LegacyDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Programs\"+Brand.Legacy.InstallFolder),
+    LegacyStartMenuDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),Brand.Legacy.StartMenu),
     DesktopDir=Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
     StartupDir=Environment.GetFolderPath(Environment.SpecialFolder.Startup),
     RegistryRoot=@"Software\Microsoft\Windows\CurrentVersion"};
   }
   public static Paths ForTest(string root) {
    root=Path.GetFullPath(root);
-   return new Paths{Test=true,InstallDir=Path.Combine(root,@"Programs\Replay OBS"),StartMenuDir=Path.Combine(root,@"StartMenu\Replay OBS"),DesktopDir=Path.Combine(root,"Desktop"),StartupDir=Path.Combine(root,"Startup"),RegistryRoot=@"Software\ReplayOBS-Test"};
+   return new Paths{Test=true,InstallDir=Path.Combine(root,@"Programs\"+Brand.InstallFolder),StartMenuDir=Path.Combine(root,@"StartMenu\"+Brand.Name),LegacyDir=Path.Combine(root,@"Programs\"+Brand.Legacy.InstallFolder),LegacyStartMenuDir=Path.Combine(root,@"StartMenu\"+Brand.Legacy.StartMenu),DesktopDir=Path.Combine(root,"Desktop"),StartupDir=Path.Combine(root,"Startup"),RegistryRoot=@"Software\ReplayOBS-Test"};
   }
  }
 
@@ -64,18 +69,21 @@ namespace ReplaySetup {
    using(var k=Registry.CurrentUser.OpenSubKey(p.UninstallKey))return k==null?null:k.GetValue("DisplayVersion") as string;
   }
   // Версия движка рядом с меню; null — движка нет.
-  public static string EngineVersion(Paths p) {
-   try { if(!File.Exists(p.EngineMarker)||!File.Exists(Path.Combine(p.EngineDir,@"bin\64bit\obs64.exe")))return null; return Json.Str(Json.Decode(File.ReadAllText(p.EngineMarker)),"version",null); } catch { return null; }
+  public static string EngineVersion(Paths p) { return EngineVersionIn(p.EngineDir); }
+  public static string EngineVersionIn(string dir) {
+   try { string marker=Path.Combine(dir,"replay-engine.json"); if(!File.Exists(marker)||!File.Exists(Path.Combine(dir,@"bin\64bit\obs64.exe")))return null; return Json.Str(Json.Decode(File.ReadAllText(marker)),"version",null); } catch { return null; }
   }
+  // Установка под прежним именем (Replay OBS, до 1.7).
+  public static bool LegacyInstalled(Paths p) { using(var k=Registry.CurrentUser.OpenSubKey(p.LegacyUninstallKey))return k!=null||File.Exists(Path.Combine(p.LegacyDir,Brand.Legacy.Exe)); }
 
   // Что выбрано у уже установленной версии — при обновлении это сохраняется (галочки установщика и тихий режим без ключей).
   public sealed class Current { public bool Installed,Autostart,Desktop,GpuPriority; }
   public static Current CurrentState(Paths p) {
-   var c=new Current{Installed=InstalledVersion(p)!=null};
+   var c=new Current{Installed=InstalledVersion(p)!=null||LegacyInstalled(p)};
    if(!c.Installed)return c;
-   using(var run=Registry.CurrentUser.OpenSubKey(p.RunKey))c.Autostart=File.Exists(p.StartupShortcut)||(run!=null&&run.GetValue("Replay Overlay")!=null);
-   c.Desktop=File.Exists(Path.Combine(p.DesktopDir,"Replay Overlay.lnk"));
-   c.GpuPriority=!p.Test&&TasksExist();
+   using(var run=Registry.CurrentUser.OpenSubKey(p.RunKey))c.Autostart=File.Exists(p.StartupShortcut)||File.Exists(Path.Combine(p.StartupDir,Brand.Legacy.Shortcut))||(run!=null&&(run.GetValue(Brand.RunValue)!=null||run.GetValue(Brand.Legacy.RunValue)!=null));
+   c.Desktop=File.Exists(p.DesktopShortcut)||File.Exists(Path.Combine(p.DesktopDir,Brand.Legacy.Shortcut));
+   c.GpuPriority=!p.Test&&(TasksExist()||LegacyTasksExist());
    return c;
   }
 
@@ -85,7 +93,7 @@ namespace ReplaySetup {
    if(o.EngineZip!=null){o.Progress("Проверяю архив движка…");Verify(o.EngineZip,o.EngineSha);return o.EngineZip;}
    var drive=new DriveInfo(Path.GetPathRoot(Path.GetFullPath(p.InstallDir)));
    if(drive.AvailableFreeSpace<EngineRelease.Size*4)throw new IOException("Мало места на диске "+drive.Name+": для движка записи нужно около 700 МБ");
-   string dir=Path.Combine(Path.GetTempPath(),"ReplayOBS-engine-"+Guid.NewGuid().ToString("N").Substring(0,8));Directory.CreateDirectory(dir);
+   string dir=Path.Combine(Path.GetTempPath(),"Vanta-engine-"+Guid.NewGuid().ToString("N").Substring(0,8));Directory.CreateDirectory(dir);
    string zip=Path.Combine(dir,"OBS-Studio-"+EngineRelease.Version+"-Windows-x64.zip");
    ServicePointManager.SecurityProtocol|=(SecurityProtocolType)3072; // TLS 1.2 — GitHub другой не принимает
    Exception last=null;
@@ -97,7 +105,7 @@ namespace ReplaySetup {
    throw new IOException("Не удалось скачать движок записи с GitHub: "+last.Message+". Проверьте интернет; если работает VPN — попробуйте выключить его или сменить сервер, и повторите.");
   }
   static void Download(string url,string file,Action<string> progress) {
-   var req=(HttpWebRequest)WebRequest.Create(url);req.UserAgent="Replay-OBS-Setup/"+Version;req.Timeout=30000;req.ReadWriteTimeout=60000;
+   var req=(HttpWebRequest)WebRequest.Create(url);req.UserAgent="Vanta-Setup/"+Version;req.Timeout=30000;req.ReadWriteTimeout=60000;
    using(var resp=(HttpWebResponse)req.GetResponse())using(var src=resp.GetResponseStream())using(var dst=File.Create(file)){
     long total=resp.ContentLength>0?resp.ContentLength:EngineRelease.Size,done=0;var buf=new byte[1<<16];int n;var shown=DateTime.MinValue;
     while((n=src.Read(buf,0,buf.Length))>0){dst.Write(buf,0,n);done+=n;
@@ -127,8 +135,9 @@ namespace ReplaySetup {
   [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
   [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
   [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] static extern bool QueryFullProcessImageName(IntPtr h,int flags,System.Text.StringBuilder s,ref int size);
-  static bool EngineRunning(Paths p){
-   string dir=Path.GetFullPath(p.EngineDir)+"\\";
+  static bool EngineRunning(Paths p){return EngineRunningIn(p.EngineDir);}
+  static bool EngineRunningIn(string engineDir){
+   string dir=Path.GetFullPath(engineDir)+"\\";
    foreach(var proc in Process.GetProcessesByName("obs64")){
     IntPtr h=OpenProcess(0x1000,false,proc.Id);if(h==IntPtr.Zero)continue;
     try{var s=new System.Text.StringBuilder(1024);int n=s.Capacity;if(QueryFullProcessImageName(h,0,s,ref n)&&s.ToString().StartsWith(dir,StringComparison.OrdinalIgnoreCase))return true;}finally{CloseHandle(h);}}
@@ -144,22 +153,53 @@ namespace ReplaySetup {
    for(int i=0;i<100&&EngineRunning(p);i++)Thread.Sleep(100);
    if(EngineRunning(p))throw new IOException("Движок записи ещё работает — выйдите из меню через значок в трее и повторите");
   }
+  // Прежнее меню (Replay OBS): тот же порядок — сигнал выхода, затем принудительно только процессы из его папки; его движок закрывает оно само.
+  public static void StopLegacy(Paths p) {
+   if(p.Test||!Directory.Exists(p.LegacyDir))return;
+   string exe=Path.GetFullPath(Path.Combine(p.LegacyDir,Brand.Legacy.Exe));
+   Func<List<Process>> legacy=()=>Process.GetProcessesByName(Brand.Legacy.Process).Where(pr=>{try{return string.Equals(Path.GetFullPath(pr.MainModule.FileName),exe,StringComparison.OrdinalIgnoreCase);}catch{return false;}}).ToList();
+   EventWaitHandle quit; if(EventWaitHandle.TryOpenExisting(Brand.Legacy.Exit,out quit))using(quit)quit.Set();
+   for(int i=0;i<100;i++){ if(legacy().Count==0)break; Thread.Sleep(100); }
+   foreach(var proc in legacy())try{proc.Kill();proc.WaitForExit(3000);}catch{}
+   for(int i=0;i<100&&EngineRunningIn(p.LegacyEngineDir);i++)Thread.Sleep(100);
+   if(EngineRunningIn(p.LegacyEngineDir))throw new IOException("Движок прежней версии (Replay OBS) ещё работает — выйдите из неё через значок в трее и повторите");
+  }
+  // Перенос прежней установки: движок с его настройками (без повторной загрузки), журналы и настройки меню. Затем следы прежнего имени убираются.
+  public static List<string> MigrateLegacy(Paths p) {
+   var log=new List<string>();if(!Directory.Exists(p.LegacyDir))return log;
+   Directory.CreateDirectory(p.InstallDir);
+   if(Directory.Exists(p.LegacyEngineDir)&&!Directory.Exists(p.EngineDir)){Directory.Move(p.LegacyEngineDir,p.EngineDir);log.Add("Движок записи перенесён из Replay OBS вместе с настройками");}
+   string oldLogs=Path.Combine(p.LegacyDir,"logs"),newLogs=Path.Combine(p.InstallDir,"logs");
+   if(Directory.Exists(oldLogs)&&!Directory.Exists(newLogs))Directory.Move(oldLogs,newLogs);
+   string oldPrefs=Path.Combine(p.LegacyDir,Brand.Legacy.Settings),newPrefs=Path.Combine(p.InstallDir,Brand.Settings);
+   if(File.Exists(oldPrefs)&&!File.Exists(newPrefs)){File.Copy(oldPrefs,newPrefs);log.Add("Настройки меню перенесены из Replay OBS");}
+   return log;
+  }
+  public static void RemoveLegacyTraces(Paths p) {
+   using(var run=Registry.CurrentUser.OpenSubKey(p.RunKey,true))if(run!=null)run.DeleteValue(Brand.Legacy.RunValue,false);
+   Registry.CurrentUser.DeleteSubKeyTree(p.LegacyUninstallKey,false);
+   foreach(string lnk in new[]{Path.Combine(p.StartupDir,Brand.Legacy.Shortcut),Path.Combine(p.DesktopDir,Brand.Legacy.Shortcut)})if(File.Exists(lnk))File.Delete(lnk);
+   if(Directory.Exists(p.LegacyStartMenuDir))Directory.Delete(p.LegacyStartMenuDir,true);
+   if(Directory.Exists(p.LegacyDir))try{Directory.Delete(p.LegacyDir,true);}catch(Exception){} // уже ничего нужного: движок и настройки перенесены
+  }
   static List<Process> Running(Paths p) {
    var list=new List<Process>();
-   foreach(var proc in Process.GetProcessesByName("ReplayOverlay")){ try { if(string.Equals(Path.GetFullPath(proc.MainModule.FileName),Path.GetFullPath(p.Exe),StringComparison.OrdinalIgnoreCase))list.Add(proc); } catch { } }
+   foreach(var proc in Process.GetProcessesByName(Brand.Process)){ try { if(string.Equals(Path.GetFullPath(proc.MainModule.FileName),Path.GetFullPath(p.Exe),StringComparison.OrdinalIgnoreCase))list.Add(proc); } catch { } }
    return list;
   }
 
   public static List<string> Install(Paths p,Options o) {
    var log=new List<string>();
    // 1. Движок: нужен, если его нет или версия другая. Скачивается до любых изменений.
-   string have=EngineVersion(p),zip=null;bool fetch=o.Engine&&have!=o.EngineVersion;
+   bool legacy=Directory.Exists(p.LegacyDir);
+   string have=EngineVersion(p)??(Directory.Exists(p.EngineDir)?null:EngineVersionIn(p.LegacyEngineDir)),zip=null;bool fetch=o.Engine&&have!=o.EngineVersion;
    if(fetch)zip=FetchEngine(p,o);
    try{
     o.Progress("Устанавливаю…");
     StopOverlay(p);
+    if(legacy){StopLegacy(p);log.AddRange(MigrateLegacy(p));}
     Directory.CreateDirectory(p.InstallDir);
-    using(var payload=Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.ReplayOverlay.exe"))
+    using(var payload=Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.Vanta.exe"))
     using(var file=File.Create(p.Exe))payload.CopyTo(file);
     string self=Assembly.GetExecutingAssembly().Location;
     if(!string.Equals(Path.GetFullPath(self),Path.GetFullPath(p.Uninstaller),StringComparison.OrdinalIgnoreCase))File.Copy(self,p.Uninstaller,true);
@@ -169,28 +209,28 @@ namespace ReplaySetup {
    } finally { if(zip!=null&&o.EngineZip==null)try{Directory.Delete(Path.GetDirectoryName(zip),true);}catch{} }
 
    Directory.CreateDirectory(p.StartMenuDir);
-   Shortcut(Path.Combine(p.StartMenuDir,"Replay Overlay.lnk"),p.Exe,"","Меню мгновенного повтора");
-   string desktop=Path.Combine(p.DesktopDir,"Replay Overlay.lnk");
-   if(o.Desktop){Directory.CreateDirectory(p.DesktopDir);Shortcut(desktop,p.Exe,"","Меню мгновенного повтора");} else if(File.Exists(desktop))File.Delete(desktop);
+   Shortcut(Path.Combine(p.StartMenuDir,Brand.Shortcut),p.Exe,"",Brand.Tagline);
+   if(o.Desktop){Directory.CreateDirectory(p.DesktopDir);Shortcut(p.DesktopShortcut,p.Exe,"",Brand.Tagline);} else if(File.Exists(p.DesktopShortcut))File.Delete(p.DesktopShortcut);
    // Автозапуск двумя независимыми способами: раздел Run и ярлык в «Автозагрузке». Explorer обрабатывает их разными путями,
    // и на части систем запись Run пропускается без объяснений. Если сработают оба — вторая копия меню тихо закроется.
    using(var run=Registry.CurrentUser.CreateSubKey(p.RunKey)) {
-    if(o.Autostart)run.SetValue("Replay Overlay","\""+p.Exe+"\" --hidden --from=run"); else run.DeleteValue("Replay Overlay",false);
+    if(o.Autostart)run.SetValue(Brand.RunValue,"\""+p.Exe+"\" --hidden --from=run"); else run.DeleteValue(Brand.RunValue,false);
    }
-   if(o.Autostart){Directory.CreateDirectory(p.StartupDir);Shortcut(p.StartupShortcut,p.Exe,"--hidden --from=startup","Меню мгновенного повтора — автозапуск");}
+   if(o.Autostart){Directory.CreateDirectory(p.StartupDir);Shortcut(p.StartupShortcut,p.Exe,"--hidden --from=startup",Brand.Tagline+" — автозапуск");}
    else if(File.Exists(p.StartupShortcut))File.Delete(p.StartupShortcut);
    log.Add(o.Autostart?"Меню будет запускаться вместе с Windows":"Автозапуск выключен");
 
    // Приоритет на видеокарте: задачи Планировщика создаёт само меню с правами администратора (один запрос Windows).
    if(!p.Test&&o.Engine){
-    bool had=TasksExist();
-    if(o.GpuPriority&&!had)log.Add(RunElevated(p.Exe,"--install-engine-tasks")&&TasksExist()?"Приоритет записи на видеокарте включён":"Приоритет на видеокарте не включён (Windows не дала прав) — его можно включить в меню: Настройки → Система");
-    else if(!o.GpuPriority&&had)log.Add(RemoveTasks(p.Exe,true)?"Приоритет записи на видеокарте выключен":"Задачи приоритета не удалены");
+    bool had=TasksExist(),old=LegacyTasksExist(); // задачи под прежним именем указывают на старые пути — их заменяют новые
+    if(o.GpuPriority&&(!had||old))log.Add(RunElevated(p.Exe,"--install-engine-tasks")&&TasksExist()&&!LegacyTasksExist()?"Приоритет записи на видеокарте включён":"Приоритет на видеокарте не включён (Windows не дала прав) — его можно включить в меню: Настройки → Система");
+    else if(!o.GpuPriority&&(had||old))log.Add(RemoveTasks(p.Exe,true)?"Приоритет записи на видеокарте выключен":"Задачи приоритета не удалены");
     else if(had)log.Add("Приоритет записи на видеокарте включён");}
 
    using(var k=Registry.CurrentUser.CreateSubKey(p.UninstallKey)) {
-    k.SetValue("DisplayName","Replay OBS"); k.SetValue("DisplayVersion",Version); k.SetValue("Publisher","erteterya");
-    k.SetValue("InstallLocation",p.InstallDir); k.SetValue("DisplayIcon",p.Exe); k.SetValue("URLInfoAbout","https://github.com/erteterya/Replay-OBS");
+    if(legacy)RemoveLegacyTraces(p);
+    k.SetValue("DisplayName",Brand.Name); k.SetValue("DisplayVersion",Version); k.SetValue("Publisher","erteterya");
+    k.SetValue("InstallLocation",p.InstallDir); k.SetValue("DisplayIcon",p.Exe); k.SetValue("URLInfoAbout",Brand.Repo);
     k.SetValue("UninstallString","\""+p.Uninstaller+"\" --uninstall"); k.SetValue("QuietUninstallString","\""+p.Uninstaller+"\" --uninstall --silent");
     k.SetValue("NoModify",1,RegistryValueKind.DWord); k.SetValue("NoRepair",1,RegistryValueKind.DWord);
     k.SetValue("EstimatedSize",(int)(FolderSize(p.InstallDir)/1024),RegistryValueKind.DWord);
@@ -201,16 +241,17 @@ namespace ReplaySetup {
   static long FolderSize(string dir){try{return new DirectoryInfo(dir).EnumerateFiles("*",SearchOption.AllDirectories).Sum(f=>f.Length);}catch{return 0;}}
 
   // ——— Задачи Планировщика (приоритет на видеокарте) ———
-  const string TaskStart=@"Replay OBS\Engine",TaskStop=@"Replay OBS\Close engine";
+  const string TaskStart=Brand.TaskStart,TaskStop=Brand.TaskStop;
   static int Schtasks(string args){
    try{using(var pr=Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory,"schtasks.exe"),args){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true})){pr.StandardOutput.ReadToEnd();pr.StandardError.ReadToEnd();return pr.WaitForExit(15000)?pr.ExitCode:-1;}}
    catch{return -1;}}
   public static bool TasksExist(){return Schtasks("/query /tn \""+TaskStart+"\"")==0||Schtasks("/query /tn \""+TaskStop+"\"")==0;}
+  public static bool LegacyTasksExist(){return Schtasks("/query /tn \""+Brand.Legacy.TaskStart+"\"")==0||Schtasks("/query /tn \""+Brand.Legacy.TaskStop+"\"")==0;}
   // Сначала без прав администратора; не вышло — копией меню с правами (один запрос Windows), если это разрешено.
   static bool RemoveTasks(string exe,bool mayAsk){
-   Schtasks("/delete /tn \""+TaskStart+"\" /f");Schtasks("/delete /tn \""+TaskStop+"\" /f");
-   if(TasksExist()&&mayAsk&&File.Exists(exe))RunElevated(exe,"--remove-engine-tasks");
-   return !TasksExist();}
+   foreach(string t in new[]{TaskStart,TaskStop,Brand.Legacy.TaskStart,Brand.Legacy.TaskStop})Schtasks("/delete /tn \""+t+"\" /f");
+   if((TasksExist()||LegacyTasksExist())&&mayAsk&&File.Exists(exe))RunElevated(exe,"--remove-engine-tasks");
+   return !TasksExist()&&!LegacyTasksExist();}
   static bool RunElevated(string exe,string arg){
    try{using(var pr=Process.Start(new ProcessStartInfo(exe,arg){UseShellExecute=true,Verb="runas",WorkingDirectory=Path.GetDirectoryName(exe)})){pr.WaitForExit(60000);return pr.HasExited&&pr.ExitCode==0;}}
    catch(System.ComponentModel.Win32Exception){return false;}}
@@ -220,10 +261,11 @@ namespace ReplaySetup {
   public static void Uninstall(Paths p,bool mayAsk) {
    StopOverlay(p);
    if(!p.Test)RemoveTasks(p.Exe,mayAsk);
-   using(var run=Registry.CurrentUser.OpenSubKey(p.RunKey,true))if(run!=null)run.DeleteValue("Replay Overlay",false);
+   using(var run=Registry.CurrentUser.OpenSubKey(p.RunKey,true))if(run!=null)run.DeleteValue(Brand.RunValue,false);
+   RemoveLegacyTraces(p);
    Registry.CurrentUser.DeleteSubKeyTree(p.UninstallKey,false);
    if(Directory.Exists(p.StartMenuDir))Directory.Delete(p.StartMenuDir,true);
-   string desktop=Path.Combine(p.DesktopDir,"Replay Overlay.lnk"); if(File.Exists(desktop))File.Delete(desktop);
+   if(File.Exists(p.DesktopShortcut))File.Delete(p.DesktopShortcut);
    if(File.Exists(p.StartupShortcut))File.Delete(p.StartupShortcut);
    if(!Directory.Exists(p.InstallDir))return;
    string self=Path.GetFullPath(Assembly.GetExecutingAssembly().Location);
@@ -262,7 +304,7 @@ namespace ReplaySetup {
    string installed=Installer.InstalledVersion(p);
    C<TextBlock>("VersionLabel").Text="Версия "+Installer.Version+(installed!=null?" · установлена "+installed:"");
    C<TextBlock>("PathLabel").Text=p.InstallDir;
-   string engine=Installer.EngineVersion(p);
+   string engine=Installer.EngineVersion(p)??Installer.EngineVersionIn(p.LegacyEngineDir);
    C<TextBlock>("EngineLabel").Text=engine==EngineRelease.Version?"установлен (OBS "+engine+")":engine!=null?"OBS "+engine+" — будет обновлён до "+EngineRelease.Version+" (скачается "+(EngineRelease.Size>>20)+" МБ)":"скачается с GitHub OBS при установке ("+(EngineRelease.Size>>20)+" МБ)";
    if(installed!=null){C<Button>("InstallButton").Content="Обновить";C<Button>("UninstallButton").Visibility=Visibility.Visible;
     var cur=Installer.CurrentState(p);C<CheckBox>("AutostartBox").IsChecked=cur.Autostart;C<CheckBox>("DesktopBox").IsChecked=cur.Desktop;C<CheckBox>("GpuBox").IsChecked=cur.GpuPriority;} // при обновлении — как сейчас
@@ -281,14 +323,14 @@ namespace ReplaySetup {
    Busy(true); Status("Готовлю установку…",false);
    try {
     var log=await Task.Run(()=>Installer.Install(paths,o));
-    Status("Готово.\n"+string.Join("\n",log)+(o.Launch?"\nМеню открыто — дальше Alt+Z.":"\nОткройте меню через «Пуск» → Replay Overlay или Alt+Z."),false);
+    Status("Готово.\n"+string.Join("\n",log)+(o.Launch?"\nМеню открыто — дальше Alt+Z.":"\nОткройте меню через «Пуск» → "+Brand.Name+" или Alt+Z."),false);
     C<Button>("InstallButton").Visibility=Visibility.Collapsed; C<Button>("CloseButton").Content="Закрыть"; C<FrameworkElement>("CloseButton").IsEnabled=true;
    } catch(Exception ex) { Status("Не удалось установить: "+ex.Message,true); Busy(false); C<Button>("InstallButton").Content="Повторить"; }
   }
   async void Uninstall() {
-   if(MessageBox.Show(w,"Удалить Replay OBS?\n\nБудут удалены меню, движок записи, ярлыки и автозапуск. Ваши записи, повторы и скриншоты останутся.","Replay OBS",MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes){if(C<Button>("InstallButton").Visibility!=Visibility.Visible)w.Close();return;}
+   if(MessageBox.Show(w,"Удалить "+Brand.Name+"?\n\nБудут удалены меню, движок записи, ярлыки и автозапуск. Ваши записи, повторы и скриншоты останутся.",Brand.Name,MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes){if(C<Button>("InstallButton").Visibility!=Visibility.Visible)w.Close();return;}
    Busy(true); Status("Удаляю…",false);
-   try { await Task.Run(()=>Installer.Uninstall(paths,true)); Status("Replay OBS удалён.",false); C<Button>("InstallButton").Visibility=Visibility.Collapsed; C<Button>("UninstallButton").Visibility=Visibility.Collapsed; C<Button>("CloseButton").Content="Закрыть"; C<FrameworkElement>("CloseButton").IsEnabled=true; }
+   try { await Task.Run(()=>Installer.Uninstall(paths,true)); Status(Brand.Name+" удалена.",false); C<Button>("InstallButton").Visibility=Visibility.Collapsed; C<Button>("UninstallButton").Visibility=Visibility.Collapsed; C<Button>("CloseButton").Content="Закрыть"; C<FrameworkElement>("CloseButton").IsEnabled=true; }
    catch(Exception ex) { Status("Не удалось удалить: "+ex.Message,true); Busy(false); }
   }
  }

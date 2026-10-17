@@ -1,10 +1,10 @@
 using System.Reflection;
 
-[assembly: AssemblyTitle("Replay OBS — установка")]
-[assembly: AssemblyDescription("Установщик Replay Overlay для OBS Studio")]
-[assembly: AssemblyProduct("Replay OBS")]
+[assembly: AssemblyTitle("Vanta — установка")]
+[assembly: AssemblyDescription("Установщик Vanta: меню мгновенного повтора поверх игр")]
+[assembly: AssemblyProduct("Vanta")]
 [assembly: AssemblyCompany("erteterya")]
-[assembly: AssemblyCopyright("MIT License")]
-[assembly: AssemblyVersion("1.6.0.0")]
-[assembly: AssemblyFileVersion("1.6.0.0")]
-[assembly: AssemblyInformationalVersion("1.6.0")]
+[assembly: AssemblyCopyright("GPL-2.0-or-later")]
+[assembly: AssemblyVersion("1.7.0.0")]
+[assembly: AssemblyFileVersion("1.7.0.0")]
+[assembly: AssemblyInformationalVersion("1.7.0")]
