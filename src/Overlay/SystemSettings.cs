@@ -39,7 +39,7 @@ namespace ReplayOverlay {
     Log.Write(on?"Приоритет записи на видеокарте включён":"Приоритет записи на видеокарте выключен");}
    finally{engineRestarting=false;}
    Message(on?"Приоритет на видеокарте включён — движок перезапущен":"Приоритет на видеокарте выключен — движок перезапущен");}
-  async Task CloseEngine(){engine.Close();for(int i=0;i<150&&engine.IsRunning;i++)await Task.Delay(100);}
+  async Task CloseEngine(){engineClosedAt=DateTime.Now;engine.Close();for(int i=0;i<150&&engine.IsRunning;i++)await Task.Delay(100);}
 
   // Архив для диагностики: журналы меню, последние журналы OBS, настройки меню, сведения о системе. Настройки WebSocket (пароль) не берём.
   async Task ExportDiagnostics(){

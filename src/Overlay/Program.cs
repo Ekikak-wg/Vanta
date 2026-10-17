@@ -100,7 +100,7 @@ namespace ReplayOverlay {
    engine.ReplayChanged+=(active,phase)=>Ui(()=>OnReplayChanged(active,phase));
    engine.ReplaySaved+=file=>Ui(()=>OnReplaySaved(file));
    engine.MuteChanged+=(input,muted)=>Ui(()=>OnMuteChanged(input,muted));
-   engine.Exiting+=()=>Ui(()=>{exitStarted=true;Log.Write("OBS закрывается");});
+   engine.Exiting+=()=>Ui(()=>{exitStarted=true;if(!ClosedByMenu)Log.Write(engine.Home.Own?"Движок записи закрывается":"OBS закрывается");});
    engine.Event+=(type,data)=>Ui(()=>OnEvent(type,data));
    window.Loaded+=(s,e)=>Position();
    UpdateControls();
@@ -291,7 +291,7 @@ namespace ReplayOverlay {
    statsTimer.Stop();C<TextBlock>("HealthLabel").Text="";appliedPid=0;sessionTimer.Stop();
    // OBS пользователя, закрытый им самим, не трогаем. Своя копия нужна меню всегда: закрыл её не меню — запускаем снова.
    if(exitStarted&&!engine.Home.Own){Log.Write("OBS закрыт");return;}
-   if(engineRestarting)return; // меню само перезапускает движок (смена кодировщика)
+   if(engineRestarting||ClosedByMenu)return; // меню само закрыло и перезапускает движок (смена кодировщика или приоритета)
    Log.Write(exitStarted?"Движок записи закрыт не меню — запускаю снова":engine.Home.Own?"Связь с движком записи потеряна (сбой или зависание)":"Связь с OBS потеряна без закрытия OBS (сбой или зависание)");
    if((!launchObs&&!engine.Home.Own)||preview)return;
    var wait=new DispatcherTimer{Interval=TimeSpan.FromSeconds(5)};wait.Tick+=(s,e)=>{wait.Stop();if(engine.Connected||exiting)return;
@@ -301,6 +301,9 @@ namespace ReplayOverlay {
   // Своя копия: кодировщик профиля должен быть среди найденных OBS при этом запуске. Нет — копия перезапускается,
   // и подготовка перед запуском выбирает лучший из найденных. Не чаще раза за сеанс меню.
   bool engineRestarted,engineRestarting;
+  // События о закрытии движка приходят уже после перезапуска — первые 15 с после закрытия меню их не считает чужим закрытием.
+  DateTime engineClosedAt=DateTime.MinValue;
+  bool ClosedByMenu{get{return engine.Home.Own&&(DateTime.Now-engineClosedAt).TotalSeconds<15;}}
   async void CheckEngineEncoder(){
    if(!engine.Home.Own||engineRestarted)return;
    try{string cur=null;
@@ -308,7 +311,7 @@ namespace ReplayOverlay {
      catch(InvalidOperationException ex){if(!ex.Message.EndsWith("(207)")||i>=20||!engine.Connected)throw;}if(cur==null)await Task.Delay(1000);}
     var found=EncoderCatalog.FromLatestLog();if(found.Count==0||found.Any(e=>e.Id==cur))return;
     engineRestarted=true;Log.Write("Движок записи: кодировщика «"+cur+"» на этом компьютере нет — перезапуск с другим");
-    engineRestarting=true;engine.Close();for(int i=0;i<150&&engine.IsRunning;i++)await Task.Delay(100);
+    engineRestarting=true;engineClosedAt=DateTime.Now;engine.Close();for(int i=0;i<150&&engine.IsRunning;i++)await Task.Delay(100);
     if(!engine.IsRunning)LaunchObsHidden("смена кодировщика");else Log.Write("Движок записи не закрылся — кодировщик сменится при следующем запуске");}
    catch(Exception ex){Log.Write("Проверка кодировщика: "+ex.Message);}
    finally{engineRestarting=false;}}
