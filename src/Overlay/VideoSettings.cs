@@ -60,7 +60,7 @@ namespace ReplayOverlay {
    finally{loading=was;}
    foreach(string n in new[]{"EncoderBox","CodecBox","QualityBox","RateControlBox"})C<FrameworkElement>(n).IsEnabled=encoderEditable;
    C<TextBlock>("EncoderHint").Visibility=encoderEditable?Visibility.Collapsed:Visibility.Visible;
-   C<TextBlock>("EncodersInfo").Text=encoders.Count==0?"Не удалось прочитать список из журнала OBS":string.Join("\n",encoders.Select(x=>x.Vendor).Distinct().Select(vd=>encoders.First(x=>x.Vendor==vd).VendorLabel+": "+string.Join(", ",encoders.Where(x=>x.Vendor==vd).Select(x=>x.CodecLabel))));
+   C<TextBlock>("EncodersInfo").Text=encoders.Count==0?"Не удалось прочитать список кодировщиков":string.Join("\n",encoders.Select(x=>x.Vendor).Distinct().Select(vd=>encoders.First(x=>x.Vendor==vd).VendorLabel+": "+string.Join(", ",encoders.Where(x=>x.Vendor==vd).Select(x=>x.CodecLabel))));
    ClipReplayPrefix=replayPrefix;UpdateQualityUi();UpdateStorageUi();}
   async Task<string> Param(string category,string name,string fallback){try{string v=Json.Str(await engine.Call("GetProfileParameter",Json.D("parameterCategory",category,"parameterName",name)),"parameterValue");return v.Length>0?v:fallback;}catch(InvalidOperationException){return fallback;}}
 
@@ -100,7 +100,7 @@ namespace ReplayOverlay {
    string format=TagOf(C<ComboBox>("FormatBox"),recFormat);if(enc!=null&&!EncoderSettings.FormatFits(format,enc.Codec))throw new InvalidOperationException("Этот формат не поддерживает выбранный кодек");
    string fname=C<TextBox>("FilenameBox").Text.Trim();string ferr=CheckFilename(fname);if(ferr!=null)throw new InvalidOperationException(ferr);
    bool outputsBusy=await engine.OutputsBusy();
-   if(outputsBusy)throw new InvalidOperationException("Сначала остановите запись, трансляцию и виртуальную камеру в OBS");
+   if(outputsBusy)throw new InvalidOperationException("Сначала остановите запись");
    string section=OutputSection,startProfile=profileName;
    string oldEncoderJson=File.Exists(encoderPath)?File.ReadAllText(encoderPath):null,oldEncoderId=recEncoderId,oldFormat=recFormat,oldFilename=filenameFormat;var oldVideo=await engine.Call("GetVideoSettings");
    bool typeChanged=enc!=null&&enc.Id!=recEncoderId;bool resume=replayAvailable&&await engine.ReplayActive()==true;bool changed=false;busy=true;UpdateControls();
@@ -121,7 +121,7 @@ namespace ReplayOverlay {
    try{
     if(failure!=null){
      try{
-      if(!engine.Connected)throw new IOException("OBS отключился");
+      if(!engine.Connected)throw new IOException("Движок записи отключился");
       if(Json.Str(await engine.Call("GetProfileList"),"currentProfileName")!=startProfile)await engine.Call("SetCurrentProfile",Json.D("profileName",startProfile));
       if(changed){
        if(await engine.ReplayActive()==true){await engine.StopReplay();await WaitBuffer(false);}
@@ -132,7 +132,7 @@ namespace ReplayOverlay {
        await engine.Call("SetVideoSettings",Json.D("outputWidth",Json.Int(oldVideo,"outputWidth"),"outputHeight",Json.Int(oldVideo,"outputHeight"),"fpsNumerator",Json.Int(oldVideo,"fpsNumerator"),"fpsDenominator",Json.Int(oldVideo,"fpsDenominator")));
        if(typeChanged)await ReloadProfile(startProfile);}
       if(resume&&await engine.ReplayActive()!=true)await StartReplayWhenReady();}
-     catch(Exception rollbackError){failure=new InvalidOperationException("Проверьте настройки OBS: откат не завершён. "+failure.Message+" / "+rollbackError.Message);}
+     catch(Exception rollbackError){failure=new InvalidOperationException("Откат настроек записи не завершён. "+failure.Message+" / "+rollbackError.Message);}
      Log.Write("Параметры записи не применены: "+failure.Message);throw failure;}}
    finally{busy=false;UpdateControls();}
    await Refresh();}
@@ -146,7 +146,7 @@ namespace ReplayOverlay {
    await WaitProfile(name);
    // OBS переключает профиль не мгновенно: служебный удаляем с повторами, пока он не перестанет быть «занятым».
    for(int i=0;;i++){try{await engine.Call("RemoveProfile",Json.D("profileName",TempProfile));break;}catch(InvalidOperationException ex){if(i>=5){Log.Write("Служебный профиль не удалён: "+ex.Message);break;}}await Task.Delay(400);}
-   Log.Write("Профиль OBS перезагружен — новый кодировщик подключён");}
+   Log.Write("Профиль движка перезагружен — новый кодировщик подключён");}
   async Task WaitProfile(string name){for(int i=0;i<50;i++){if(Json.Str(await engine.Call("GetProfileList"),"currentProfileName")==name)return;await Task.Delay(100);}}
   Task StartReplayWhenReady(){return engine.StartReplayWhenReady();}
 

@@ -69,7 +69,7 @@ static class FakeObsTest {
     lock (received) Check(received.Count(r => r == "Never") == 1 && received.All(r => r.Length > 0), "все запросы содержали requestType");
    }
    ObsClient.ConfigPath = Path.Combine(dir, "missing.json");
-   using (var none = new ObsClient()) { string s = null; none.Status += x => s = x; none.Start(); Thread.Sleep(800); Check(!none.Connected && s != null && s.Contains("OBS"), "нет конфигурации: понятное сообщение"); }
+   using (var none = new ObsClient()) { string s = null; none.Status += x => s = x; none.Start(); Thread.Sleep(800); Check(!none.Connected && s != null && s.Contains("Движок записи"), "нет конфигурации: понятное сообщение"); }
   } finally { listener.Stop(); try { Directory.Delete(dir, true); } catch { } }
   Console.WriteLine(failures == 0 ? "ИТОГ: все проверки пройдены" : "ИТОГ: провалов " + failures);
   return failures == 0 ? 0 : 1;

@@ -107,11 +107,11 @@ namespace ReplayOverlay {
    var q=C<Slider>("ShotQuality");q.Value=shotQuality;q.ValueChanged+=(s,e)=>{shotQuality=(int)e.NewValue;C<TextBlock>("ShotQualityLabel").Text=shotQuality.ToString();};q.PreviewMouseUp+=(s,e)=>SavePrefs();
    var src=C<ComboBox>("ShotSourceBox");SelectTag(src,shotSource);src.SelectionChanged+=(s,e)=>{var it=src.SelectedItem as ComboBoxItem;if(it==null)return;shotSource=Convert.ToString(it.Tag);UpdateShotUi();SavePrefs();};
    C<Button>("ShotFolderPick").Click+=(s,e)=>PickShotFolder();
-   C<Button>("ShotOpenFolder").Click+=(s,e)=>Run(async()=>{string d=ShotDir;if(d.Length==0)throw new InvalidOperationException("Папка пока неизвестна: подключитесь к OBS");Directory.CreateDirectory(d);Process.Start(new ProcessStartInfo("explorer.exe","\""+d+"\""){UseShellExecute=true});await Task.FromResult(0);});
+   C<Button>("ShotOpenFolder").Click+=(s,e)=>Run(async()=>{string d=ShotDir;if(d.Length==0)throw new InvalidOperationException("Папка пока неизвестна: подождите, пока запустится движок записи");Directory.CreateDirectory(d);Process.Start(new ProcessStartInfo("explorer.exe","\""+d+"\""){UseShellExecute=true});await Task.FromResult(0);});
    UpdateShotUi();}
   void UpdateShotUi(){bool jpeg=shotFormat=="jpeg";C<TextBlock>("ShotPngHint").Visibility=jpeg?Visibility.Collapsed:Visibility.Visible;C<StackPanel>("ShotJpegPanel").Visibility=jpeg?Visibility.Visible:Visibility.Collapsed;C<TextBlock>("ShotQualityLabel").Text=shotQuality.ToString();
    C<TextBlock>("ShotFolderLabel").Text=ShotDir.Length>0?ShotDir:"—";C<TextBlock>("ShotFolderLabel").ToolTip=ShotDir;
-   C<TextBlock>("ShotSourceHint").Text=shotSource=="game"?"Снимок окна игры через захват игры OBS — без меню, уведомлений и других окон.":shotSource=="scene"?"Снимок того, что сейчас записывается: текущая сцена OBS целиком.":shotSource=="window"?"Снимок окна, в котором вы были до открытия меню, — без OBS. Игры в эксклюзивном полноэкранном режиме так могут получиться чёрными — для них выберите «Текущая игра».":"Снимок всего монитора через захват экрана OBS. Окна из исключений в него попадут, если они видны.";
+   C<TextBlock>("ShotSourceHint").Text=shotSource=="game"?"Снимок окна игры через захват игры — без меню, уведомлений и других окон.":shotSource=="scene"?"Снимок того, что сейчас записывается, целиком.":shotSource=="window"?"Снимок окна, в котором вы были до открытия меню, — напрямую, без движка записи. Игры в эксклюзивном полноэкранном режиме так могут получиться чёрными — для них выберите «Текущая игра».":"Снимок всего монитора через захват экрана. Окна из исключений в него попадут, если они видны.";
    Hotkey k=HotkeyFor("shot");C<TextBlock>("ShotKeyHint").Text=k!=null?k.ToString():"Сочетание не задано";}
   void PickShotFolder(){string chosen;dialogOpen=true;
    try{using(var d=new WF.FolderBrowserDialog{Description="Куда сохранять скриншоты",ShowNewFolderButton=true,SelectedPath=ShotDir}){if(d.ShowDialog(new Owner(handle))!=WF.DialogResult.OK)return;chosen=d.SelectedPath;}}
@@ -120,13 +120,13 @@ namespace ReplayOverlay {
 
   // Источник снимка ищется в OBS заново каждый раз: имена источников могут меняться.
   async Task<string> ShotSourceName(){
-   if(shotSource=="scene"){if(string.IsNullOrEmpty(currentScene))throw new InvalidOperationException("Сцена OBS неизвестна");return currentScene;}
+   if(shotSource=="scene"){if(string.IsNullOrEmpty(currentScene))throw new InvalidOperationException("Сцена неизвестна");return currentScene;}
    string kind=shotSource=="screen"?"monitor_capture":"game_capture";
    if(shotSource=="game"&&gamesWatch.Current==null)throw new InvalidOperationException("Игра не обнаружена — выберите «Весь экран» или «То, что записывается»");
    if(!string.IsNullOrEmpty(currentScene))foreach(object raw in await Items(currentScene)){var it=Json.Obj(raw);if(Json.Str(it,"inputKind")==kind)return Json.Str(it,"sourceName");}
    object list;(await engine.Call("GetInputList",Json.D("inputKind",kind))).TryGetValue("inputs",out list);
    var first=((list as object[])??new object[0]).Select(o=>Json.Str(Json.Obj(o),"inputName")).FirstOrDefault();
-   if(first==null)throw new InvalidOperationException(shotSource=="screen"?"В OBS нет захвата экрана":"В OBS нет захвата игры");
+   if(first==null)throw new InvalidOperationException(shotSource=="screen"?"Нет захвата экрана":"Нет захвата игры");
    return first;}
   async Task TakeScreenshot(){
    string dir=ShotDir;if(dir.Length==0)throw new InvalidOperationException("Папка скриншотов неизвестна");Directory.CreateDirectory(dir);
@@ -138,7 +138,7 @@ namespace ReplayOverlay {
    string file=Path.Combine(dir,name+(jpeg?".jpg":".png"));for(int i=2;File.Exists(file);i++)file=Path.Combine(dir,name+"_"+i+(jpeg?".jpg":".png"));
    if(own){int q=shotQuality;await Task.Run(()=>WindowShot.Save(target,file,jpeg,q));}
    else await engine.SaveScreenshot(source,file,jpeg,shotQuality);
-   if(!File.Exists(file))throw new IOException(own?"Снимок не сохранён":"OBS не сохранил снимок");
+   if(!File.Exists(file))throw new IOException(own?"Снимок не сохранён":"Движок записи не сохранил снимок");
    Log.Write("Скриншот: "+Path.GetFileName(file)+" ("+source+")");Message("Скриншот: "+Path.GetFileName(file));
    Track(file);Notify("Скриншот сохранён",Path.GetFileName(file),ToastKind.Shot);ClipsChanged();}
  }

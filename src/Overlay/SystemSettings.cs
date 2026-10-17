@@ -70,9 +70,9 @@ namespace ReplayOverlay {
 
   // Сброс настроек меню: резервная копия, перезапуск меню. OBS не трогаем; строгую защиту нужно сначала выключить (иначе её фильтры останутся в OBS).
   void ResetSettings(){
-   if(strict!=null&&strict.On){Message("Сначала выключите строгую защиту в «Приватности» — иначе её фильтр и «шторка» останутся в OBS");return;}
+   if(strict!=null&&strict.On){Message("Сначала выключите строгую защиту в «Приватности» — иначе её фильтр и «шторка» останутся в движке записи");return;}
    MessageBoxResult ok;dialogOpen=true;
-   try{ok=MessageBox.Show(window,"Вернуть все настройки меню к исходным?\n\nСбросятся горячие клавиши, исключения, списки игр, папки повторов и скриншотов, автоочистка и вид галереи. Настройки, сцены и источники OBS не меняются; источники звука, созданные меню, останутся в OBS.\n\nСтарые настройки сохранятся в overlay-settings.json.reset-backup. Меню перезапустится.","Replay — сброс настроек",MessageBoxButton.OKCancel,MessageBoxImage.Warning);}
+   try{ok=MessageBox.Show(window,"Вернуть все настройки меню к исходным?\n\nСбросятся горячие клавиши, исключения, списки игр, папки повторов и скриншотов, автоочистка и вид галереи. Настройки, сцены и источники движка записи не меняются; источники звука, созданные меню, останутся в нём.\n\nСтарые настройки сохранятся в overlay-settings.json.reset-backup. Меню перезапустится.","Replay — сброс настроек",MessageBoxButton.OKCancel,MessageBoxImage.Warning);}
    finally{dialogOpen=false;window.Activate();}
    if(ok!=MessageBoxResult.OK)return;
    try{RestoreHiddenNow();if(File.Exists(prefsPath))File.Copy(prefsPath,prefsPath+".reset-backup",true);

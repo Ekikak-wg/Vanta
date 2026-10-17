@@ -37,14 +37,14 @@ namespace ReplayOverlay {
    while(!stop.IsCancellationRequested) {
     try {
      var config=Json.Decode(File.ReadAllText(ConfigFile??ConfigPath));
-     if(!Json.Bool(config,"server_enabled"))throw new InvalidOperationException("В OBS выключено управление WebSocket");
+     if(!Json.Bool(config,"server_enabled"))throw new InvalidOperationException("У движка записи выключено управление");
      int port=Json.Int(config,"server_port",4455);
      socket=new ClientWebSocket(); socket.Options.Proxy=null; socket.Options.KeepAliveInterval=TimeSpan.FromSeconds(25);
      using(var connectTimeout=CancellationTokenSource.CreateLinkedTokenSource(stop.Token)) {
       connectTimeout.CancelAfter(5000);
       await socket.ConnectAsync(new Uri("ws://127.0.0.1:"+port),connectTimeout.Token).ConfigureAwait(false);
       var hello=await Receive(connectTimeout.Token).ConfigureAwait(false);
-      if(Json.Int(hello,"op")!=0)throw new InvalidOperationException("Неподдерживаемый ответ OBS");
+      if(Json.Int(hello,"op")!=0)throw new InvalidOperationException("Неподдерживаемый ответ движка записи");
       var data=Json.Obj(hello["d"]);
       var identify=Json.D("rpcVersion",1,"eventSubscriptions",719); // General|Config|Scenes|Inputs|Outputs|SceneItems|Vendors
       if(data.ContainsKey("authentication")) {
@@ -53,7 +53,7 @@ namespace ReplayOverlay {
       }
       await Send(Json.D("op",1,"d",identify),connectTimeout.Token).ConfigureAwait(false);
       var reply=await Receive(connectTimeout.Token).ConfigureAwait(false);
-      if(Json.Int(reply,"op")!=2)throw new InvalidOperationException("OBS отклонил подключение");
+      if(Json.Int(reply,"op")!=2)throw new InvalidOperationException("Движок записи отклонил подключение");
      }
      Connected=true; if(ConnectionChanged!=null)ConnectionChanged(true);
      while(socket.State==WebSocketState.Open&&!stop.IsCancellationRequested) {
@@ -63,14 +63,14 @@ namespace ReplayOverlay {
        if(pending.TryRemove(Json.Str(d,"requestId"),out promise)) {
         var status=Json.Obj(d["requestStatus"]);
         if(Json.Bool(status,"result"))promise.TrySetResult(d.ContainsKey("responseData")?Json.Obj(d["responseData"]):Json.D());
-        else promise.TrySetException(new InvalidOperationException(Json.Str(status,"comment","OBS отклонил команду")+" ("+Json.Int(status,"code")+")"));
+        else promise.TrySetException(new InvalidOperationException(Json.Str(status,"comment","Движок записи отклонил команду")+" ("+Json.Int(status,"code")+")"));
        }
       } else if(op==5&&EventReceived!=null)EventReceived(Json.Str(d,"eventType"),d.ContainsKey("eventData")?Json.Obj(d["eventData"]):Json.D());
      }
-    } catch(Exception ex) { if(!stop.IsCancellationRequested&&Status!=null)Status(ex is FileNotFoundException?"Запустите OBS и настройте подключение":"Нет связи с OBS. Ожидаю подключение…"); }
+    } catch(Exception ex) { if(!stop.IsCancellationRequested&&Status!=null)Status(ex is FileNotFoundException?"Движок записи ещё не настроен — жду…":"Жду движок записи…"); }
     finally {
      Connected=false; if(ConnectionChanged!=null)ConnectionChanged(false);
-     foreach(var p in pending) { TaskCompletionSource<Dictionary<string,object>> t; if(pending.TryRemove(p.Key,out t))t.TrySetException(new IOException("Связь с OBS прервана")); }
+     foreach(var p in pending) { TaskCompletionSource<Dictionary<string,object>> t; if(pending.TryRemove(p.Key,out t))t.TrySetException(new IOException("Связь с движком записи прервана")); }
      if(socket!=null)socket.Dispose();
     }
     try { await Task.Delay(3000,stop.Token).ConfigureAwait(false); } catch(OperationCanceledException){break;}
@@ -79,7 +79,7 @@ namespace ReplayOverlay {
   private async Task<Dictionary<string,object>> Receive(CancellationToken token) {
    var buffer=new byte[8192]; using(var memory=new MemoryStream()) {
     WebSocketReceiveResult r;
-    do { r=await socket.ReceiveAsync(new ArraySegment<byte>(buffer),token).ConfigureAwait(false); if(r.MessageType==WebSocketMessageType.Close)throw new IOException("OBS отключился"); memory.Write(buffer,0,r.Count); if(memory.Length>1048576)throw new IOException("Ответ OBS слишком большой"); } while(!r.EndOfMessage);
+    do { r=await socket.ReceiveAsync(new ArraySegment<byte>(buffer),token).ConfigureAwait(false); if(r.MessageType==WebSocketMessageType.Close)throw new IOException("Движок записи отключился"); memory.Write(buffer,0,r.Count); if(memory.Length>1048576)throw new IOException("Ответ движка записи слишком большой"); } while(!r.EndOfMessage);
     return Json.Decode(Encoding.UTF8.GetString(memory.ToArray()));
    }
   }
@@ -88,12 +88,12 @@ namespace ReplayOverlay {
    try { await socket.SendAsync(new ArraySegment<byte>(bytes),WebSocketMessageType.Text,true,token).ConfigureAwait(false); } finally { sendGate.Release(); }
   }
   public async Task<Dictionary<string,object>> Call(string type,Dictionary<string,object> data=null) {
-   if(!Connected)throw new InvalidOperationException("Сначала подключитесь к OBS");
+   if(!Connected)throw new InvalidOperationException("Движок записи ещё не подключён");
    string id=Guid.NewGuid().ToString("N"); var promise=new TaskCompletionSource<Dictionary<string,object>>(); pending[id]=promise;
    try {
     await Send(Json.D("op",6,"d",Json.D("requestType",type,"requestId",id,"requestData",data??Json.D())),stop.Token).ConfigureAwait(false);
     var done=await Task.WhenAny(promise.Task,Task.Delay(8000,stop.Token)).ConfigureAwait(false);
-    if(done!=promise.Task)throw new TimeoutException("OBS не ответил. Состояние операции неизвестно; проверьте OBS.");
+    if(done!=promise.Task)throw new TimeoutException("Движок записи не ответил. Состояние операции неизвестно.");
     return await promise.Task.ConfigureAwait(false);
    } finally { TaskCompletionSource<Dictionary<string,object>> old; pending.TryRemove(id,out old); }
   }
