@@ -287,7 +287,7 @@ namespace ReplayOverlay {
   // Связь с OBS появилась или пропала. Пропала без события ExitStarted — значит OBS упал или его сняли: запускаем снова.
   void OnConnection(bool connected){
    if(connected==wasConnected)return;wasConnected=connected;
-   if(connected){connections++;Log.Write(engine.Home.Own?"Подключено к движку записи":"Подключено к OBS");exitStarted=false;statsTimeouts=0;lastStats=null;statsTimer.Start();PollStats();CheckEngineEncoder();return;}
+   if(connected){connections++;skips.Mark(DateTime.Now);Log.Write(engine.Home.Own?"Подключено к движку записи":"Подключено к OBS");exitStarted=false;statsTimeouts=0;lastStats=null;statsTimer.Start();PollStats();CheckEngineEncoder();return;}
    statsTimer.Stop();C<TextBlock>("HealthLabel").Text="";appliedPid=0;sessionTimer.Stop();
    // OBS пользователя, закрытый им самим, не трогаем. Своя копия нужна меню всегда: закрыл её не меню — запускаем снова.
    if(exitStarted&&!engine.Home.Own){Log.Write("OBS закрыт");return;}
@@ -323,12 +323,14 @@ namespace ReplayOverlay {
    try{await engine.StartReplay();Log.Write("Буфер повтора включён автоматически");if(connections>1&&!window.IsVisible)Notify("Мгновенный повтор","Включён снова");}
    catch(Exception ex){Log.Write("Не удалось включить буфер: "+ex.Message);}}
   // Раз в 10 с: пропуски кадров, место на диске, отвечает ли OBS. Сводка в журнал — раз в 5 минут.
+  readonly SkipLedger skips=new SkipLedger();
   async void PollStats(){
    if(!engine.Connected)return;
    try{var cur=await engine.Stats();
     if(statsTimeouts>=2)Log.Write("OBS снова отвечает");statsTimeouts=0;
-    if(diagnostics)foreach(var p in Health.Problems(lastStats,cur))Warn(p.Key,p.Value);
-    lastStats=cur;if(statsPolls++%30==0)Log.Write("Сводка: "+Health.Summary(cur)+" · пропуски кодировщика "+cur.OutputSkipped+"/"+cur.OutputTotal+" · отрисовки "+cur.RenderSkipped+"/"+cur.RenderTotal+" · меню "+(Environment.WorkingSet/1048576)+" МБ");
+    var now=DateTime.Now;bool quiet=skips.Quiet(now);skips.Add(lastStats,cur,now);
+    if(diagnostics&&!quiet)foreach(var p in Health.Problems(lastStats,cur))Warn(p.Key,p.Value); // при запуске и закрытии игры пропуски ожидаемы
+    lastStats=cur;if(statsPolls++%30==0)Log.Write("Сводка: "+Health.Summary(cur)+" · пропуски в игре "+skips.InGame+", при запуске и закрытии игр "+skips.Transition+" (кодировщик "+cur.OutputSkipped+"/"+cur.OutputTotal+", отрисовка "+cur.RenderSkipped+"/"+cur.RenderTotal+") · меню "+(Environment.WorkingSet/1048576)+" МБ");
     if(diagnostics)C<TextBlock>("HealthLabel").Text=Health.Summary(cur);}
    catch(TimeoutException){statsTimeouts++;Log.Write("OBS не ответил на запрос статистики ("+statsTimeouts+")");if(statsTimeouts==2)Warn("hang","OBS не отвечает. Если он завис — закройте его: меню запустит OBS заново и включит повтор.");}
    catch(Exception){}}
@@ -372,7 +374,7 @@ namespace ReplayOverlay {
   // Игра найдена: захват игры — на её окно, сцена — по профилю игры или по умолчанию.
   // Сцену с заставкой во время трансляции не трогаем: там её выбрали намеренно.
   async void OnGameStarted(GameInfo g){
-   UpdateGameLabel();ApplyPrivacy();if(appliedPid!=g.Pid)Log.Write("Найдена игра: "+g.FileName+" ("+g.Reason+")");
+   UpdateGameLabel();ApplyPrivacy();if(appliedPid!=g.Pid)skips.Mark(DateTime.Now);if(appliedPid!=g.Pid)Log.Write("Найдена игра: "+g.FileName+" ("+g.Reason+")");
    if(!engine.Connected||!correctProfile||gameBusy||gameSession==null)return;gameBusy=true;
    try{
     foreach(string line in await gameSession.Capture(g,!noCursor.Contains(g.Exe)))Log.Write(line);
@@ -388,7 +390,7 @@ namespace ReplayOverlay {
     if(first&&!window.IsVisible)Notify("Игра: "+g.FileName,mode=="game"?"Записывается только окно игры":mode=="desktop"?"Записывается игра и весь экран":"Захват настроен на окно игры");
    }catch(Exception ex){Log.Write("Игра: не удалось настроить захват: "+ex.Message);Message("Игра: "+ex.Message);}
    finally{gameBusy=false;}}
-  void OnGameStopped(GameInfo g){Log.Write("Игра закрыта: "+g.FileName);appliedPid=0;UpdateGameLabel();RestoreAfterGame();ApplyPrivacy();}
+  void OnGameStopped(GameInfo g){skips.Mark(DateTime.Now);Log.Write("Игра закрыта: "+g.FileName);appliedPid=0;UpdateGameLabel();RestoreAfterGame();ApplyPrivacy();}
   // После игры: прежняя сцена (если её не меняли вручную) и прежние настройки захвата игры.
   async void RestoreAfterGame(){
    if(gameSession==null||(gameSession.Backup.Count==0&&gameSession.SceneByGame==null))return;
@@ -613,6 +615,12 @@ namespace ReplayOverlay {
  }
  public static class Program {
   [STAThread] public static void Main(string[] args){
+   // Служебные запуски (задачи Планировщика и запрос прав): делают одно действие и выходят, основное меню не трогают.
+   if(args.Contains(EngineTasks.CloseArg)){Environment.Exit(ObsEngine.CloseHere(EngineHome.Find())==0?0:1);return;}
+   if(args.Contains(EngineTasks.InstallArg)||args.Contains(EngineTasks.RemoveArg)){
+    try{if(args.Contains(EngineTasks.RemoveArg))EngineTasks.Remove();else{var home=EngineHome.Find();if(!home.Own)throw new InvalidOperationException("Движок записи не найден рядом с меню");EngineTasks.Install(home,Assembly.GetExecutingAssembly().Location);}Environment.Exit(0);}
+    catch(Exception ex){Log.Write("Задачи движка: "+ex.Message);Environment.Exit(2);}
+    return;}
    // После сброса настроек новое меню ждёт, пока закроется старое (иначе единственный экземпляр не даст запуститься).
    var waitArg=args.FirstOrDefault(a=>a.StartsWith("--wait-pid="));int waitPid;
    if(waitArg!=null&&int.TryParse(waitArg.Substring(11),out waitPid)){try{using(var old=Process.GetProcessById(waitPid))old.WaitForExit(15000);}catch(ArgumentException){}}

@@ -95,7 +95,11 @@ static class EngineTest {
     string cfg=home.ConfigRoot,user=System.IO.Path.Combine(cfg,"user.ini"),ini=System.IO.Path.Combine(cfg,@"basic\profiles\Replay\basic.ini");
     Check(System.IO.File.Exists(System.IO.Path.Combine(root,"portable_mode.txt"))&&System.IO.File.Exists(System.IO.Path.Combine(root,"disable_updater.txt")),"портативный режим и запрет обновлений");
     Check(EngineSetup.IniGet(user,"General","FirstRun")=="true"&&EngineSetup.IniGet(user,"BasicWindow","SysTrayWhenStarted")=="true"&&EngineSetup.IniGet(user,"Basic","Profile")=="Replay","user.ini: без мастера, в трей, профиль Replay");
-    Check(EngineSetup.IniGet(System.IO.Path.Combine(cfg,"global.ini"),"General","EnableAutoUpdates")=="false","global.ini: обновления выключены");
+    Check(EngineSetup.IniGet(System.IO.Path.Combine(cfg,"global.ini"),"General","EnableAutoUpdates")=="false"&&EngineSetup.IniGet(System.IO.Path.Combine(cfg,"global.ini"),"General","ProcessPriority")=="AboveNormal","global.ini: обновления выключены, приоритет выше обычного");
+    string taskXml=EngineTasks.TaskXml("S-1-5-21-1",home.Executable,home.HiddenArgs+" & <x>",root);
+    var task=new System.Xml.XmlDocument();task.LoadXml(taskXml.Substring(taskXml.IndexOf("?>")+2)); // объявление UTF-16 — для файла, строку разбираем без него
+    var ns=new System.Xml.XmlNamespaceManager(task.NameTable);ns.AddNamespace("t","http://schemas.microsoft.com/windows/2004/02/mit/task");
+    Check(task.SelectSingleNode("//t:RunLevel",ns).InnerText=="HighestAvailable"&&task.SelectSingleNode("//t:Command",ns).InnerText==home.Executable&&task.SelectSingleNode("//t:Arguments",ns).InnerText.EndsWith(" & <x>")&&task.SelectSingleNode("//t:ExecutionTimeLimit",ns).InnerText=="PT0S","задача Планировщика: наивысшие права, путь и ключи экранированы, без ограничения времени");
     var ws=Json.Decode(System.IO.File.ReadAllText(home.WebSocketConfig));
     Check(Json.Bool(ws,"server_enabled")&&Json.Bool(ws,"auth_required")&&!Json.Bool(ws,"first_load")&&Json.Str(ws,"server_password").Length==20&&Json.Int(ws,"server_port")>=4466,"WebSocket своей копии: включён, пароль 20 символов, порт "+Json.Int(ws,"server_port"));
     Check(EngineSetup.IniGet(ini,"Output","Mode")=="Advanced"&&EngineSetup.IniGet(ini,"AdvOut","RecRB")=="true"&&EngineSetup.IniGet(ini,"AdvOut","RecFilePath")==folder.Replace('\\','/')&&System.IO.Directory.Exists(folder),"профиль: расширенный вывод, буфер повтора, папка записей");

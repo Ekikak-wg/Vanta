@@ -34,6 +34,22 @@ namespace ReplayOverlay {
   }
  }
 
+ // Пропуски кадров раздельно: во время игры и в переходах — запуск и закрытие игры, первые секунды движка.
+ // В переходах игра пересоздаёт окно и устройство видеокарты, и пара пропущенных кадров там ожидаема.
+ public sealed class SkipLedger {
+  public const int QuietSeconds=20;
+  public long InGame,Transition;
+  public DateTime QuietUntil=DateTime.MinValue;
+  public void Mark(DateTime now){var t=now.AddSeconds(QuietSeconds);if(t>QuietUntil)QuietUntil=t;}
+  public bool Quiet(DateTime now){return now<=QuietUntil;}
+  // Новые пропуски (кодировщик + отрисовка) между снимками. Движок перезапустился (счётчики уменьшились) — интервал не считаем.
+  public long Add(StatsSample prev,StatsSample cur,DateTime now){
+   if(prev==null||cur.OutputSkipped<prev.OutputSkipped||cur.RenderSkipped<prev.RenderSkipped||cur.OutputTotal<prev.OutputTotal)return 0;
+   long d=(cur.OutputSkipped-prev.OutputSkipped)+(cur.RenderSkipped-prev.RenderSkipped);
+   if(Quiet(now))Transition+=d;else InGame+=d;
+   return d;}
+ }
+
  public static class Health {
   public const double LowDiskMb=5*1024; // предупреждаем, когда на диске записей меньше 5 ГБ
 

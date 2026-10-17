@@ -560,6 +560,7 @@
         <CheckBox x:Name="LaunchObsBox" Content="Запускать OBS вместе с меню (свёрнутым в трей)" ToolTip="Если OBS упадёт, меню запустит его снова"/>
         <CheckBox x:Name="KeepReplayBox" Content="Держать мгновенный повтор включённым" ToolTip="После перезапуска OBS буфер включится сам. Если выключить его вручную — меню не трогает"/>
         <CheckBox x:Name="DiagnosticsBox" Content="Предупреждать о пропуске кадров и нехватке места"/>
+        <CheckBox x:Name="GpuPriorityBox" Content="Приоритет записи на видеокарте" ToolTip="Движок записи работает с правами администратора и получает повышенный приоритет на видеокарте — меньше пропусков кадров, когда игра загружает её полностью. Windows один раз спросит разрешение."/>
         <CheckBox x:Name="ToastsBox" Content="Показывать уведомления (повтор сохранён, запись, ошибки)"/>
         <CheckBox x:Name="KeysPanelBox" Content="Подсказка горячих клавиш справа снизу, пока открыто меню"/>
         <TextBlock Text="Индикатор записи в углу экрана" Style="{StaticResource Label}" Margin="0,4,0,0"/>

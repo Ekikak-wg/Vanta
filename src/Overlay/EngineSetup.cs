@@ -19,6 +19,7 @@ namespace ReplayOverlay {
    var log=new List<string>();string cfg=home.ConfigRoot;Directory.CreateDirectory(cfg);
    Touch(Path.Combine(home.Root,"portable_mode.txt"));Touch(Path.Combine(home.Root,"disable_updater.txt"));
    IniSet(Path.Combine(cfg,"global.ini"),"General","EnableAutoUpdates","false");
+   IniSet(Path.Combine(cfg,"global.ini"),"General","ProcessPriority","AboveNormal"); // выше обычного: игра реже отнимает у записи процессор
    string user=Path.Combine(cfg,"user.ini");
    IniSet(user,"General","FirstRun","true");IniSet(user,"General","ConfirmOnExit","false");
    IniSet(user,"BasicWindow","SysTrayEnabled","true");IniSet(user,"BasicWindow","SysTrayWhenStarted","true");IniSet(user,"BasicWindow","PreviewEnabled","false");

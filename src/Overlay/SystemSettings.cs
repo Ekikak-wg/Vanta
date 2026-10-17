@@ -18,8 +18,28 @@ namespace ReplayOverlay {
   void BindSystem(){
    var tb=C<CheckBox>("ToastsBox");tb.IsChecked=toastsOn;toasts.Enabled=toastsOn;
    tb.Click+=(s,e)=>{toastsOn=tb.IsChecked==true;toasts.Enabled=toastsOn;SavePrefs();Message(toastsOn?"Уведомления включены":"Уведомления выключены — сообщения только в журнале и внизу меню");};
+   var gp=C<CheckBox>("GpuPriorityBox");gp.Visibility=engine.Home.Own?Visibility.Visible:Visibility.Collapsed;
+   if(engine.Home.Own){gp.IsChecked=EngineTasks.Installed();gp.Click+=(s,e)=>{bool want=gp.IsChecked==true;gp.IsChecked=!want;Run(()=>SetGpuPriority(want));};}
    C<Button>("ExportButton").Click+=(s,e)=>Run(ExportDiagnostics);
    C<Button>("ResetButton").Click+=(s,e)=>ResetSettings();}
+
+  // Приоритет на видеокарте: задачи Планировщика создаются (или удаляются) копией меню с правами администратора,
+  // затем движок перезапускается уже нужным способом. Накопленный повтор при перезапуске сбрасывается.
+  // Выключение: сначала закрыть движок (копию с правами администратора закрывает только задача), потом удалить задачи.
+  async Task SetGpuPriority(bool on){
+   EnsureReady();engineRestarting=true;
+   try{
+    if(!on)await CloseEngine();
+    dialogOpen=true;bool ok;
+    try{ok=await Task.Run(()=>EngineTasks.RunElevated(on?EngineTasks.InstallArg:EngineTasks.RemoveArg));}finally{dialogOpen=false;window.Activate();}
+    bool now=EngineTasks.Installed();C<CheckBox>("GpuPriorityBox").IsChecked=now;
+    if(on&&now)await CloseEngine();
+    if(!engine.IsRunning)LaunchObsHidden("смена приоритета");
+    if(!ok||now!=on)throw new InvalidOperationException(on?"Приоритет не включён: Windows не дала прав администратора":"Приоритет не выключен");
+    Log.Write(on?"Приоритет записи на видеокарте включён":"Приоритет записи на видеокарте выключен");}
+   finally{engineRestarting=false;}
+   Message(on?"Приоритет на видеокарте включён — движок перезапущен":"Приоритет на видеокарте выключен — движок перезапущен");}
+  async Task CloseEngine(){engine.Close();for(int i=0;i<150&&engine.IsRunning;i++)await Task.Delay(100);}
 
   // Архив для диагностики: журналы меню, последние журналы OBS, настройки меню, сведения о системе. Настройки WebSocket (пароль) не берём.
   async Task ExportDiagnostics(){

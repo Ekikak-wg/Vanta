@@ -91,9 +91,16 @@ namespace ReplayOverlay {
   public static EngineHome Find(){string root=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"engine");return File.Exists(Path.Combine(root,@"bin\64bit\obs64.exe"))?OwnCopy(root):UserObs();}
   public string FindExecutable(){return Executable??ObsConfig.Executable();}
   // Свою копию узнаём по пути: рядом может работать OBS пользователя с тем же именем процесса.
+  // Путь читается с минимальными правами — так он доступен и у копии, запущенной с правами администратора.
   public Process[] Running(){
    var all=Process.GetProcessesByName(ProcessName);if(!Own)return all;
-   return all.Where(p=>{try{return string.Equals(p.MainModule.FileName,Executable,StringComparison.OrdinalIgnoreCase);}catch(Exception){return false;}}).ToArray();}
+   return all.Where(p=>string.Equals(ImagePath(p.Id),Executable,StringComparison.OrdinalIgnoreCase)).ToArray();}
+  [System.Runtime.InteropServices.DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
+  [System.Runtime.InteropServices.DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
+  [System.Runtime.InteropServices.DllImport("kernel32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)] static extern bool QueryFullProcessImageName(IntPtr h,int flags,System.Text.StringBuilder s,ref int size);
+  static string ImagePath(int pid){
+   IntPtr h=OpenProcess(0x1000,false,pid);if(h==IntPtr.Zero)return null; // PROCESS_QUERY_LIMITED_INFORMATION
+   try{var s=new System.Text.StringBuilder(1024);int n=s.Capacity;return QueryFullProcessImageName(h,0,s,ref n)?s.ToString():null;}finally{CloseHandle(h);}}
  }
 
  static class EngineWindows {
@@ -150,13 +157,26 @@ namespace ReplayOverlay {
   public EngineHome Home{get{return home;}}
   public bool IsRunning{get{return home.Running().Length>0;}}
   // Ждём до 5 с, чтобы следующий запуск меню не застал копию на выходе (тогда новая не запустится, а старая вот-вот закроется).
-  public void Close(){if(!home.Own)return;foreach(var p in home.Running()){try{if(EngineWindows.Close(p.Id)){Log.Write("Движок записи закрывается");if(!p.WaitForExit(5000))Log.Write("Движок записи закрывается дольше 5 с");}}catch(Exception ex){Log.Write("Движок не закрыт: "+ex.Message);}}}
+  // Копию с правами администратора закрывает задача «Close engine»: её окно не принимает WM_CLOSE от меню.
+  public void Close(){if(!home.Own)return;foreach(var p in home.Running()){try{
+    bool asked=EngineWindows.Close(p.Id);
+    if(!asked&&EngineTasks.Installed())asked=EngineTasks.Run(EngineTasks.Stop);
+    if(!asked){Log.Write("Движок записи не удалось попросить закрыться");continue;}
+    Log.Write("Движок записи закрывается");if(!p.WaitForExit(5000))Log.Write("Движок записи закрывается дольше 5 с");}
+   catch(Exception ex){Log.Write("Движок не закрыт: "+ex.Message);}}}
+  // Для задачи «Close engine» (тот же уровень прав, что у движка): закрыть копию и дождаться выхода.
+  public static int CloseHere(EngineHome home){int left=0;foreach(var p in home.Running()){if(EngineWindows.Close(p.Id)&&p.WaitForExit(10000))continue;left++;}return left;}
   public bool IsProcess(string exeName){return string.Equals(exeName,home.ProcessName,StringComparison.OrdinalIgnoreCase)||string.Equals(exeName,"obs32",StringComparison.OrdinalIgnoreCase);}
   public bool LaunchHidden(bool startReplay,string reason){
    if(IsRunning)return false;string exe=home.FindExecutable();
    if(exe==null){Log.Write("OBS не найден — запуск пропущен");var h=Status;if(h!=null)h("OBS Studio не найден");return false;}
    if(home.Own){try{foreach(string line in EngineSetup.Prepare(home,home.PreferredFolder))Log.Write(line);}catch(Exception ex){Log.Write("Движок записи не подготовлен: "+ex.Message);return false;}}
    int stale=ObsConfig.ClearCrashSentinels();if(stale>0)Log.Write("Сняты признаки прошлого сбоя OBS ("+stale+"), чтобы он не ждал ответа в скрытом окне");
+   // Есть задачи Планировщика — движок запускается с правами администратора (повышенный приоритет на видеокарте).
+   // Повтор задача сама не включает: его включает меню после подключения.
+   if(home.Own&&EngineTasks.Installed()){
+    if(EngineTasks.Run(EngineTasks.Start)){Log.Write("Движок записи запущен с приоритетом на видеокарте ("+reason+")");return true;}
+    Log.Write("Задача Планировщика не запустила движок — запускаю обычным способом");}
    string what=home.Own?"Движок записи запущен":"OBS запущен в трее";
    try{Process.Start(new ProcessStartInfo(exe,home.HiddenArgs+(startReplay?" --startreplaybuffer":"")){WorkingDirectory=Path.GetDirectoryName(exe),UseShellExecute=true});Log.Write(what+" ("+reason+")");return true;}
    catch(Exception ex){Log.Write("Не удалось запустить "+(home.Own?"движок записи":"OBS")+": "+ex.Message);return false;}}
