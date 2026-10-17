@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -18,10 +20,12 @@ using ReplayOverlay;
 namespace ReplaySetup {
  // Куда ставить. В тестовом режиме (--test-root) всё уходит в отдельную папку и ветку реестра.
  sealed class Paths {
-  public string InstallDir,StartMenuDir,DesktopDir,StartupDir,WebSocketConfig,RegistryRoot; public bool Test;
+  public string InstallDir,StartMenuDir,DesktopDir,StartupDir,RegistryRoot; public bool Test;
   public string StartupShortcut { get { return Path.Combine(StartupDir,"Replay Overlay.lnk"); } }
   public string Exe { get { return Path.Combine(InstallDir,"ReplayOverlay.exe"); } }
   public string Uninstaller { get { return Path.Combine(InstallDir,"uninstall.exe"); } }
+  public string EngineDir { get { return Path.Combine(InstallDir,"engine"); } }
+  public string EngineMarker { get { return Path.Combine(EngineDir,"replay-engine.json"); } }
   public string RunKey { get { return RegistryRoot+@"\Run"; } }
   public string UninstallKey { get { return RegistryRoot+@"\Uninstall\ReplayOBS"; } }
   public static Paths Real() {
@@ -30,74 +34,115 @@ namespace ReplaySetup {
     StartMenuDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),"Replay OBS"),
     DesktopDir=Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
     StartupDir=Environment.GetFolderPath(Environment.SpecialFolder.Startup),
-    WebSocketConfig=ObsConfig.WebSocketConfig,
     RegistryRoot=@"Software\Microsoft\Windows\CurrentVersion"};
   }
   public static Paths ForTest(string root) {
    root=Path.GetFullPath(root);
-   return new Paths{Test=true,InstallDir=Path.Combine(root,@"Programs\Replay OBS"),StartMenuDir=Path.Combine(root,@"StartMenu\Replay OBS"),DesktopDir=Path.Combine(root,"Desktop"),StartupDir=Path.Combine(root,"Startup"),
-    WebSocketConfig=Path.Combine(root,@"obs-studio\plugin_config\obs-websocket\config.json"),RegistryRoot=@"Software\ReplayOBS-Test"};
+   return new Paths{Test=true,InstallDir=Path.Combine(root,@"Programs\Replay OBS"),StartMenuDir=Path.Combine(root,@"StartMenu\Replay OBS"),DesktopDir=Path.Combine(root,"Desktop"),StartupDir=Path.Combine(root,"Startup"),RegistryRoot=@"Software\ReplayOBS-Test"};
   }
  }
 
- sealed class Options { public bool WebSocket=true,Autostart=true,Desktop,Launch=true,LaunchObs=true; }
+ // Движок записи — официальный портативный OBS Studio (GPL-2.0) с GitHub проекта OBS. Версия и контрольная сумма закреплены:
+ // установщик ставит ровно этот архив и ничего другого.
+ static class EngineRelease {
+  public const string Version="32.2.2";
+  public const string Url="https://github.com/obsproject/obs-studio/releases/download/32.2.2/OBS-Studio-32.2.2-Windows-x64.zip";
+  public const string Sha256="4d6e40e3ab155f56b30de517380566a206d74b63cdf5ad49aa596924768f97e1";
+  public const long Size=187851583;
+ }
+
+ sealed class Options {
+  public bool Autostart=true,Desktop,Launch=true,GpuPriority,Engine=true;
+  public string EngineZip;                                       // готовый архив вместо загрузки (без сети)
+  public string EngineSha=EngineRelease.Sha256,EngineVersion=EngineRelease.Version; // подменяются только в тестах (--test-root)
+  public Action<string> Progress=s=>{};
+ }
 
  static class Installer {
   public static string Version { get { return Assembly.GetExecutingAssembly().GetName().Version.ToString(3); } }
-
-  public static bool IsObsRunning() { return Process.GetProcessesByName("obs64").Length+Process.GetProcessesByName("obs32").Length>0; }
-  public static string ObsVersion(out bool supported) {
-   supported=false; string exe=ObsConfig.Executable(); if(exe==null)return null;
-   string v=FileVersionInfo.GetVersionInfo(exe).ProductVersion??"";
-   int major; supported=int.TryParse(v.Split('.')[0],out major)&&major>=30; return v.Length>0?v:"?";
-  }
-  // null — файла нет; иначе включён ли сервер.
-  public static bool? WebSocketEnabled(Paths p,out int port) {
-   port=4455; if(!File.Exists(p.WebSocketConfig))return null;
-   try { var c=Json.Decode(File.ReadAllText(p.WebSocketConfig)); port=Json.Int(c,"server_port",4455); return Json.Bool(c,"server_enabled"); } catch { return null; }
-  }
   public static string InstalledVersion(Paths p) {
    using(var k=Registry.CurrentUser.OpenSubKey(p.UninstallKey))return k==null?null:k.GetValue("DisplayVersion") as string;
   }
-
-  // Включает сервер obs-websocket. Пароль не меняется, если он уже есть; новый — случайный.
-  public static string EnableWebSocket(Paths p) {
-   Dictionary<string,object> c;
-   if(File.Exists(p.WebSocketConfig)) {
-    c=Json.Decode(File.ReadAllText(p.WebSocketConfig));
-    if(Json.Bool(c,"server_enabled"))return "WebSocket OBS уже включён — настройки не менялись";
-    File.Copy(p.WebSocketConfig,p.WebSocketConfig+".replay-obs.bak",true);
-   } else { Directory.CreateDirectory(Path.GetDirectoryName(p.WebSocketConfig)); c=new Dictionary<string,object>{{"alerts_enabled",false},{"first_load",false},{"server_port",4455}}; }
-   c["server_enabled"]=true; c["auth_required"]=true;
-   if(Json.Str(c,"server_password").Length==0)c["server_password"]=RandomPassword(20);
-   if(!c.ContainsKey("server_port"))c["server_port"]=4455;
-   string temp=p.WebSocketConfig+".tmp"; File.WriteAllText(temp,Json.Encode(c),new System.Text.UTF8Encoding(false));
-   if(File.Exists(p.WebSocketConfig))File.Replace(temp,p.WebSocketConfig,null); else File.Move(temp,p.WebSocketConfig);
-   return "WebSocket OBS включён (порт "+Json.Int(c,"server_port",4455)+", вход по паролю)";
-  }
-  static string RandomPassword(int length) {
-   const string alphabet="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"; var bytes=new byte[length];
-   using(var rng=new RNGCryptoServiceProvider())rng.GetBytes(bytes);
-   return new string(bytes.Select(b=>alphabet[b%alphabet.Length]).ToArray());
+  // Версия движка рядом с меню; null — движка нет.
+  public static string EngineVersion(Paths p) {
+   try { if(!File.Exists(p.EngineMarker)||!File.Exists(Path.Combine(p.EngineDir,@"bin\64bit\obs64.exe")))return null; return Json.Str(Json.Decode(File.ReadAllText(p.EngineMarker)),"version",null); } catch { return null; }
   }
 
   // Что выбрано у уже установленной версии — при обновлении это сохраняется (галочки установщика и тихий режим без ключей).
-  public sealed class Current { public bool Installed,Autostart,Desktop,LaunchObs=true; }
+  public sealed class Current { public bool Installed,Autostart,Desktop,GpuPriority; }
   public static Current CurrentState(Paths p) {
    var c=new Current{Installed=InstalledVersion(p)!=null};
    if(!c.Installed)return c;
    using(var run=Registry.CurrentUser.OpenSubKey(p.RunKey))c.Autostart=File.Exists(p.StartupShortcut)||(run!=null&&run.GetValue("Replay Overlay")!=null);
    c.Desktop=File.Exists(Path.Combine(p.DesktopDir,"Replay Overlay.lnk"));
-   try{string prefs=Path.Combine(p.InstallDir,"overlay-settings.json");if(File.Exists(prefs)){var cfg=Json.Decode(File.ReadAllText(prefs));if(cfg.ContainsKey("launchObs"))c.LaunchObs=Json.Bool(cfg,"launchObs");}}catch{}
+   c.GpuPriority=!p.Test&&TasksExist();
    return c;
   }
 
+  // ——— Загрузка и проверка движка ———
+  // Сначала архив целиком скачивается и проверяется — до любых изменений на диске: сбой сети ничего не ломает.
+  public static string FetchEngine(Paths p,Options o) {
+   if(o.EngineZip!=null){o.Progress("Проверяю архив движка…");Verify(o.EngineZip,o.EngineSha);return o.EngineZip;}
+   var drive=new DriveInfo(Path.GetPathRoot(Path.GetFullPath(p.InstallDir)));
+   if(drive.AvailableFreeSpace<EngineRelease.Size*4)throw new IOException("Мало места на диске "+drive.Name+": для движка записи нужно около 700 МБ");
+   string dir=Path.Combine(Path.GetTempPath(),"ReplayOBS-engine-"+Guid.NewGuid().ToString("N").Substring(0,8));Directory.CreateDirectory(dir);
+   string zip=Path.Combine(dir,"OBS-Studio-"+EngineRelease.Version+"-Windows-x64.zip");
+   ServicePointManager.SecurityProtocol|=(SecurityProtocolType)3072; // TLS 1.2 — GitHub другой не принимает
+   Exception last=null;
+   for(int attempt=1;attempt<=3;attempt++){
+    try{Download(EngineRelease.Url,zip,o.Progress);Verify(zip,o.EngineSha);return zip;}
+    catch(Exception ex){last=ex;o.Progress("Загрузка прервалась ("+ex.Message+"), попытка "+(attempt+1)+" из 3…");Thread.Sleep(2000*attempt);}
+   }
+   try{Directory.Delete(dir,true);}catch{}
+   throw new IOException("Не удалось скачать движок записи с GitHub: "+last.Message+". Проверьте интернет; если работает VPN — попробуйте выключить его или сменить сервер, и повторите.");
+  }
+  static void Download(string url,string file,Action<string> progress) {
+   var req=(HttpWebRequest)WebRequest.Create(url);req.UserAgent="Replay-OBS-Setup/"+Version;req.Timeout=30000;req.ReadWriteTimeout=60000;
+   using(var resp=(HttpWebResponse)req.GetResponse())using(var src=resp.GetResponseStream())using(var dst=File.Create(file)){
+    long total=resp.ContentLength>0?resp.ContentLength:EngineRelease.Size,done=0;var buf=new byte[1<<16];int n;var shown=DateTime.MinValue;
+    while((n=src.Read(buf,0,buf.Length))>0){dst.Write(buf,0,n);done+=n;
+     if((DateTime.Now-shown).TotalMilliseconds>250){shown=DateTime.Now;progress("Скачиваю движок записи: "+(done>>20)+" из "+(total>>20)+" МБ");}}
+    if(done!=total)throw new IOException("скачано "+(done>>20)+" из "+(total>>20)+" МБ");}
+  }
+  public static string Sha256Of(string file){using(var s=File.OpenRead(file))using(var sha=SHA256.Create())return BitConverter.ToString(sha.ComputeHash(s)).Replace("-","").ToLowerInvariant();}
+  static void Verify(string zip,string sha){
+   string got=Sha256Of(zip);
+   if(got!=sha.ToLowerInvariant())throw new InvalidDataException("контрольная сумма архива движка не совпала — файл повреждён или подменён");}
+
+  // Распаковка рядом: новая версия — в engine.new, настройки движка (папка config) переносятся из прежней; затем замена.
+  public static void InstallEngine(Paths p,string zip,string version) {
+   string fresh=p.EngineDir+".new",old=p.EngineDir+".old";
+   foreach(string d in new[]{fresh,old})if(Directory.Exists(d))Directory.Delete(d,true);
+   ZipFile.ExtractToDirectory(zip,fresh);
+   if(!File.Exists(Path.Combine(fresh,@"bin\64bit\obs64.exe"))){Directory.Delete(fresh,true);throw new InvalidDataException("в архиве нет bin\\64bit\\obs64.exe");}
+   string config=Path.Combine(p.EngineDir,"config");
+   if(Directory.Exists(config))Directory.Move(config,Path.Combine(fresh,"config"));
+   if(Directory.Exists(p.EngineDir))Directory.Move(p.EngineDir,old);
+   Directory.Move(fresh,p.EngineDir);
+   File.WriteAllText(p.EngineMarker,Json.Encode(Json.D("version",version,"source",EngineRelease.Url)),new System.Text.UTF8Encoding(false));
+   if(Directory.Exists(old))try{Directory.Delete(old,true);}catch{}
+  }
+
+  // Свой движок запущен из папки установки (обычно его закрывает меню при выходе).
+  [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
+  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
+  [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] static extern bool QueryFullProcessImageName(IntPtr h,int flags,System.Text.StringBuilder s,ref int size);
+  static bool EngineRunning(Paths p){
+   string dir=Path.GetFullPath(p.EngineDir)+"\\";
+   foreach(var proc in Process.GetProcessesByName("obs64")){
+    IntPtr h=OpenProcess(0x1000,false,proc.Id);if(h==IntPtr.Zero)continue;
+    try{var s=new System.Text.StringBuilder(1024);int n=s.Capacity;if(QueryFullProcessImageName(h,0,s,ref n)&&s.ToString().StartsWith(dir,StringComparison.OrdinalIgnoreCase))return true;}finally{CloseHandle(h);}}
+   return false;}
+
   // Закрывает установленное меню (сигнал выхода, затем принудительно — только процессы из папки установки).
+  // Меню при выходе само закрывает свой движок.
   public static void StopOverlay(Paths p) {
    if(p.Test)return;
    EventWaitHandle quit; if(EventWaitHandle.TryOpenExisting(Names.Exit,out quit))using(quit)quit.Set();
-   for(int i=0;i<50;i++){ if(Running(p).Count==0)return; Thread.Sleep(100); }
+   for(int i=0;i<100;i++){ if(Running(p).Count==0)break; Thread.Sleep(100); }
    foreach(var proc in Running(p))try{proc.Kill();proc.WaitForExit(3000);}catch{}
+   for(int i=0;i<100&&EngineRunning(p);i++)Thread.Sleep(100);
+   if(EngineRunning(p))throw new IOException("Движок записи ещё работает — выйдите из меню через значок в трее и повторите");
   }
   static List<Process> Running(Paths p) {
    var list=new List<Process>();
@@ -107,48 +152,74 @@ namespace ReplaySetup {
 
   public static List<string> Install(Paths p,Options o) {
    var log=new List<string>();
-   StopOverlay(p);
-   Directory.CreateDirectory(p.InstallDir);
-   using(var payload=Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.ReplayOverlay.exe"))
-   using(var file=File.Create(p.Exe))payload.CopyTo(file);
-   string self=Assembly.GetExecutingAssembly().Location;
-   if(!string.Equals(Path.GetFullPath(self),Path.GetFullPath(p.Uninstaller),StringComparison.OrdinalIgnoreCase))File.Copy(self,p.Uninstaller,true);
-   log.Add("Меню установлено: "+p.InstallDir);
-   // Настройка меню «запускать OBS вместе с меню»; остальные его настройки при обновлении сохраняются.
-   string prefs=Path.Combine(p.InstallDir,"overlay-settings.json");
-   var cfg=File.Exists(prefs)?Json.Decode(File.ReadAllText(prefs)):new Dictionary<string,object>();
-   cfg["launchObs"]=o.LaunchObs; File.WriteAllText(prefs,Json.Encode(cfg),new System.Text.UTF8Encoding(false));
-   log.Add(o.LaunchObs?"OBS будет запускаться вместе с меню (в трее)":"OBS запускается вручную");
+   // 1. Движок: нужен, если его нет или версия другая. Скачивается до любых изменений.
+   string have=EngineVersion(p),zip=null;bool fetch=o.Engine&&have!=o.EngineVersion;
+   if(fetch)zip=FetchEngine(p,o);
+   try{
+    o.Progress("Устанавливаю…");
+    StopOverlay(p);
+    Directory.CreateDirectory(p.InstallDir);
+    using(var payload=Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.ReplayOverlay.exe"))
+    using(var file=File.Create(p.Exe))payload.CopyTo(file);
+    string self=Assembly.GetExecutingAssembly().Location;
+    if(!string.Equals(Path.GetFullPath(self),Path.GetFullPath(p.Uninstaller),StringComparison.OrdinalIgnoreCase))File.Copy(self,p.Uninstaller,true);
+    log.Add("Меню установлено: "+p.InstallDir);
+    if(fetch){o.Progress("Распаковываю движок записи…");InstallEngine(p,zip,o.EngineVersion);log.Add(have==null?"Движок записи установлен (OBS "+o.EngineVersion+")":"Движок записи обновлён: "+have+" → "+o.EngineVersion+", его настройки сохранены");}
+    else if(have!=null)log.Add("Движок записи уже установлен (OBS "+have+")");
+   } finally { if(zip!=null&&o.EngineZip==null)try{Directory.Delete(Path.GetDirectoryName(zip),true);}catch{} }
 
    Directory.CreateDirectory(p.StartMenuDir);
-   Shortcut(Path.Combine(p.StartMenuDir,"Replay Overlay.lnk"),p.Exe,"","Меню повторов OBS");
+   Shortcut(Path.Combine(p.StartMenuDir,"Replay Overlay.lnk"),p.Exe,"","Меню мгновенного повтора");
    string desktop=Path.Combine(p.DesktopDir,"Replay Overlay.lnk");
-   if(o.Desktop){Directory.CreateDirectory(p.DesktopDir);Shortcut(desktop,p.Exe,"","Меню повторов OBS");} else if(File.Exists(desktop))File.Delete(desktop);
+   if(o.Desktop){Directory.CreateDirectory(p.DesktopDir);Shortcut(desktop,p.Exe,"","Меню мгновенного повтора");} else if(File.Exists(desktop))File.Delete(desktop);
    // Автозапуск двумя независимыми способами: раздел Run и ярлык в «Автозагрузке». Explorer обрабатывает их разными путями,
    // и на части систем запись Run пропускается без объяснений. Если сработают оба — вторая копия меню тихо закроется.
    using(var run=Registry.CurrentUser.CreateSubKey(p.RunKey)) {
     if(o.Autostart)run.SetValue("Replay Overlay","\""+p.Exe+"\" --hidden --from=run"); else run.DeleteValue("Replay Overlay",false);
    }
-   if(o.Autostart){Directory.CreateDirectory(p.StartupDir);Shortcut(p.StartupShortcut,p.Exe,"--hidden --from=startup","Меню повторов OBS — автозапуск");}
+   if(o.Autostart){Directory.CreateDirectory(p.StartupDir);Shortcut(p.StartupShortcut,p.Exe,"--hidden --from=startup","Меню мгновенного повтора — автозапуск");}
    else if(File.Exists(p.StartupShortcut))File.Delete(p.StartupShortcut);
    log.Add(o.Autostart?"Меню будет запускаться вместе с Windows":"Автозапуск выключен");
 
-   if(o.WebSocket)log.Add(EnableWebSocket(p));
+   // Приоритет на видеокарте: задачи Планировщика создаёт само меню с правами администратора (один запрос Windows).
+   if(!p.Test&&o.Engine){
+    bool had=TasksExist();
+    if(o.GpuPriority&&!had)log.Add(RunElevated(p.Exe,"--install-engine-tasks")&&TasksExist()?"Приоритет записи на видеокарте включён":"Приоритет на видеокарте не включён (Windows не дала прав) — его можно включить в меню: Настройки → Система");
+    else if(!o.GpuPriority&&had)log.Add(RemoveTasks(p.Exe,true)?"Приоритет записи на видеокарте выключен":"Задачи приоритета не удалены");
+    else if(had)log.Add("Приоритет записи на видеокарте включён");}
 
    using(var k=Registry.CurrentUser.CreateSubKey(p.UninstallKey)) {
     k.SetValue("DisplayName","Replay OBS"); k.SetValue("DisplayVersion",Version); k.SetValue("Publisher","erteterya");
     k.SetValue("InstallLocation",p.InstallDir); k.SetValue("DisplayIcon",p.Exe); k.SetValue("URLInfoAbout","https://github.com/erteterya/Replay-OBS");
     k.SetValue("UninstallString","\""+p.Uninstaller+"\" --uninstall"); k.SetValue("QuietUninstallString","\""+p.Uninstaller+"\" --uninstall --silent");
     k.SetValue("NoModify",1,RegistryValueKind.DWord); k.SetValue("NoRepair",1,RegistryValueKind.DWord);
-    k.SetValue("EstimatedSize",(int)((new FileInfo(p.Exe).Length+new FileInfo(p.Uninstaller).Length)/1024),RegistryValueKind.DWord);
+    k.SetValue("EstimatedSize",(int)(FolderSize(p.InstallDir)/1024),RegistryValueKind.DWord);
    }
    if(o.Launch&&!p.Test)Process.Start(new ProcessStartInfo(p.Exe){WorkingDirectory=p.InstallDir,UseShellExecute=true});
    return log;
   }
+  static long FolderSize(string dir){try{return new DirectoryInfo(dir).EnumerateFiles("*",SearchOption.AllDirectories).Sum(f=>f.Length);}catch{return 0;}}
 
-  // Удаляет меню, ярлыки, автозапуск и запись в «Установленных приложениях». Настройки OBS не трогает.
-  public static void Uninstall(Paths p) {
+  // ——— Задачи Планировщика (приоритет на видеокарте) ———
+  const string TaskStart=@"Replay OBS\Engine",TaskStop=@"Replay OBS\Close engine";
+  static int Schtasks(string args){
+   try{using(var pr=Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory,"schtasks.exe"),args){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true})){pr.StandardOutput.ReadToEnd();pr.StandardError.ReadToEnd();return pr.WaitForExit(15000)?pr.ExitCode:-1;}}
+   catch{return -1;}}
+  public static bool TasksExist(){return Schtasks("/query /tn \""+TaskStart+"\"")==0||Schtasks("/query /tn \""+TaskStop+"\"")==0;}
+  // Сначала без прав администратора; не вышло — копией меню с правами (один запрос Windows), если это разрешено.
+  static bool RemoveTasks(string exe,bool mayAsk){
+   Schtasks("/delete /tn \""+TaskStart+"\" /f");Schtasks("/delete /tn \""+TaskStop+"\" /f");
+   if(TasksExist()&&mayAsk&&File.Exists(exe))RunElevated(exe,"--remove-engine-tasks");
+   return !TasksExist();}
+  static bool RunElevated(string exe,string arg){
+   try{using(var pr=Process.Start(new ProcessStartInfo(exe,arg){UseShellExecute=true,Verb="runas",WorkingDirectory=Path.GetDirectoryName(exe)})){pr.WaitForExit(60000);return pr.HasExited&&pr.ExitCode==0;}}
+   catch(System.ComponentModel.Win32Exception){return false;}}
+
+  // Удаляет меню, движок записи, ярлыки, автозапуск, задачи Планировщика и запись в «Установленных приложениях».
+  // Записи, повторы и скриншоты не трогает.
+  public static void Uninstall(Paths p,bool mayAsk) {
    StopOverlay(p);
+   if(!p.Test)RemoveTasks(p.Exe,mayAsk);
    using(var run=Registry.CurrentUser.OpenSubKey(p.RunKey,true))if(run!=null)run.DeleteValue("Replay Overlay",false);
    Registry.CurrentUser.DeleteSubKeyTree(p.UninstallKey,false);
    if(Directory.Exists(p.StartMenuDir))Directory.Delete(p.StartMenuDir,true);
@@ -156,6 +227,7 @@ namespace ReplaySetup {
    if(File.Exists(p.StartupShortcut))File.Delete(p.StartupShortcut);
    if(!Directory.Exists(p.InstallDir))return;
    string self=Path.GetFullPath(Assembly.GetExecutingAssembly().Location);
+   foreach(string d in Directory.GetDirectories(p.InstallDir))Directory.Delete(d,true); // движок записи, журналы
    foreach(string f in Directory.GetFiles(p.InstallDir))if(!string.Equals(Path.GetFullPath(f),self,StringComparison.OrdinalIgnoreCase))File.Delete(f);
    if(self.StartsWith(Path.GetFullPath(p.InstallDir)+"\\",StringComparison.OrdinalIgnoreCase))
     // Запущенный uninstall.exe не может удалить сам себя — папку уберёт cmd после выхода.
@@ -190,16 +262,10 @@ namespace ReplaySetup {
    string installed=Installer.InstalledVersion(p);
    C<TextBlock>("VersionLabel").Text="Версия "+Installer.Version+(installed!=null?" · установлена "+installed:"");
    C<TextBlock>("PathLabel").Text=p.InstallDir;
-   bool supported; string obs=Installer.ObsVersion(out supported);
-   C<TextBlock>("ObsLabel").Text=obs==null?"не найден — установите OBS Studio 30 или новее":supported?"найден, версия "+obs:"версия "+obs+" — нужна 30 или новее";
-   C<TextBlock>("ObsLabel").Foreground=(System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(obs!=null&&supported?"#C6E8A3":"#F2C46D");
-   if(obs==null||!supported)C<Button>("ObsLink").Visibility=Visibility.Visible;
-   C<Button>("ObsLink").Click+=(s,e)=>Process.Start(new ProcessStartInfo("https://obsproject.com/download"){UseShellExecute=true});
-   int port; bool? socket=Installer.WebSocketEnabled(p,out port);
-   C<TextBlock>("SocketLabel").Text=socket==true?"включён (порт "+port+")":socket==false?"выключен — установщик может включить":"настройка не найдена — будет создана";
-   if(socket==true){C<CheckBox>("SocketBox").IsChecked=true;C<CheckBox>("SocketBox").IsEnabled=false;}
+   string engine=Installer.EngineVersion(p);
+   C<TextBlock>("EngineLabel").Text=engine==EngineRelease.Version?"установлен (OBS "+engine+")":engine!=null?"OBS "+engine+" — будет обновлён до "+EngineRelease.Version+" (скачается "+(EngineRelease.Size>>20)+" МБ)":"скачается с GitHub OBS при установке ("+(EngineRelease.Size>>20)+" МБ)";
    if(installed!=null){C<Button>("InstallButton").Content="Обновить";C<Button>("UninstallButton").Visibility=Visibility.Visible;
-    var cur=Installer.CurrentState(p);C<CheckBox>("AutostartBox").IsChecked=cur.Autostart;C<CheckBox>("DesktopBox").IsChecked=cur.Desktop;C<CheckBox>("ObsLaunchBox").IsChecked=cur.LaunchObs;} // при обновлении — как сейчас
+    var cur=Installer.CurrentState(p);C<CheckBox>("AutostartBox").IsChecked=cur.Autostart;C<CheckBox>("DesktopBox").IsChecked=cur.Desktop;C<CheckBox>("GpuBox").IsChecked=cur.GpuPriority;} // при обновлении — как сейчас
    C<Button>("CloseButton").Click+=(s,e)=>w.Close();
    C<Button>("InstallButton").Click+=(s,e)=>Install();
    C<Button>("UninstallButton").Click+=(s,e)=>Uninstall();
@@ -210,46 +276,45 @@ namespace ReplaySetup {
   void Busy(bool on) { foreach(string n in new[]{"InstallButton","UninstallButton","CloseButton","Options"})C<FrameworkElement>(n).IsEnabled=!on; }
 
   async void Install() {
-   var o=new Options{WebSocket=C<CheckBox>("SocketBox").IsChecked==true,Autostart=C<CheckBox>("AutostartBox").IsChecked==true,Desktop=C<CheckBox>("DesktopBox").IsChecked==true,Launch=C<CheckBox>("LaunchBox").IsChecked==true,LaunchObs=C<CheckBox>("ObsLaunchBox").IsChecked==true};
-   int port; if(o.WebSocket&&Installer.WebSocketEnabled(paths,out port)!=true) {
-    while(Installer.IsObsRunning()) {
-     var r=MessageBox.Show(w,"Чтобы включить WebSocket, закройте OBS Studio и нажмите «Повторить».\n\n«Отмена» — установить без этого шага (включить можно в OBS: Сервис → Настройки WebSocket-сервера).","Replay OBS",MessageBoxButton.OKCancel,MessageBoxImage.Information);
-     if(r!=MessageBoxResult.OK){o.WebSocket=false;break;}
-    }
-   }
-   Busy(true); Status("Устанавливаю…",false);
+   var o=new Options{Autostart=C<CheckBox>("AutostartBox").IsChecked==true,Desktop=C<CheckBox>("DesktopBox").IsChecked==true,Launch=C<CheckBox>("LaunchBox").IsChecked==true,GpuPriority=C<CheckBox>("GpuBox").IsChecked==true};
+   o.Progress=s=>w.Dispatcher.BeginInvoke(new Action(()=>Status(s,false)));
+   Busy(true); Status("Готовлю установку…",false);
    try {
     var log=await Task.Run(()=>Installer.Install(paths,o));
     Status("Готово.\n"+string.Join("\n",log)+(o.Launch?"\nМеню открыто — дальше Alt+Z.":"\nОткройте меню через «Пуск» → Replay Overlay или Alt+Z."),false);
     C<Button>("InstallButton").Visibility=Visibility.Collapsed; C<Button>("CloseButton").Content="Закрыть"; C<FrameworkElement>("CloseButton").IsEnabled=true;
-   } catch(Exception ex) { Status("Не удалось установить: "+ex.Message,true); Busy(false); }
+   } catch(Exception ex) { Status("Не удалось установить: "+ex.Message,true); Busy(false); C<Button>("InstallButton").Content="Повторить"; }
   }
   async void Uninstall() {
-   if(MessageBox.Show(w,"Удалить Replay OBS?\n\nБудут удалены меню, ярлыки и автозапуск. Настройки OBS (профили, сцены, WebSocket) останутся как есть.","Replay OBS",MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes){if(C<Button>("InstallButton").Visibility!=Visibility.Visible)w.Close();return;}
+   if(MessageBox.Show(w,"Удалить Replay OBS?\n\nБудут удалены меню, движок записи, ярлыки и автозапуск. Ваши записи, повторы и скриншоты останутся.","Replay OBS",MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes){if(C<Button>("InstallButton").Visibility!=Visibility.Visible)w.Close();return;}
    Busy(true); Status("Удаляю…",false);
-   try { await Task.Run(()=>Installer.Uninstall(paths)); Status("Replay OBS удалён.",false); C<Button>("InstallButton").Visibility=Visibility.Collapsed; C<Button>("UninstallButton").Visibility=Visibility.Collapsed; C<Button>("CloseButton").Content="Закрыть"; C<FrameworkElement>("CloseButton").IsEnabled=true; }
+   try { await Task.Run(()=>Installer.Uninstall(paths,true)); Status("Replay OBS удалён.",false); C<Button>("InstallButton").Visibility=Visibility.Collapsed; C<Button>("UninstallButton").Visibility=Visibility.Collapsed; C<Button>("CloseButton").Content="Закрыть"; C<FrameworkElement>("CloseButton").IsEnabled=true; }
    catch(Exception ex) { Status("Не удалось удалить: "+ex.Message,true); Busy(false); }
   }
  }
 
  static class Program {
   [DllImport("kernel32.dll")] static extern bool AttachConsole(int processId);
-  // Ключи: --uninstall, --silent, --test-root <папка>, --no-websocket, --no-autostart, --no-obs-launch, --desktop, --no-launch.
+  // Ключи: --uninstall, --silent, --test-root <папка>, --no-autostart | --autostart, --desktop | --no-desktop, --no-launch,
+  // --gpu-priority | --no-gpu-priority, --engine-zip <архив> (без загрузки), --no-engine.
+  // Только с --test-root: --engine-sha256 <сумма>, --engine-version <версия> (поддельный архив в проверках).
   [STAThread] static int Main(string[] args) {
    var list=args.ToList(); int at=list.IndexOf("--test-root");
    var paths=at>=0&&at+1<list.Count?Paths.ForTest(list[at+1]):Paths.Real();
+   Func<string,string> arg=k=>{int i=list.IndexOf(k);return i>=0&&i+1<list.Count?list[i+1]:null;};
    bool uninstall=list.Contains("--uninstall"),silent=list.Contains("--silent")||list.Contains("/S");
    if(silent) {
     AttachConsole(-1); // вывод в консоль, из которой запущен тихий режим
     try {
-     if(uninstall){Installer.Uninstall(paths);Console.WriteLine("removed");return 0;}
+     if(uninstall){Installer.Uninstall(paths,false);Console.WriteLine("removed");return 0;}
      // Обновление без ключей сохраняет то, что выбрано сейчас; ключи явно включают или выключают.
      var cur=Installer.CurrentState(paths);
-     var o=new Options{WebSocket=!list.Contains("--no-websocket"),Launch=!list.Contains("--no-launch"),
+     var o=new Options{Launch=!list.Contains("--no-launch"),Engine=!list.Contains("--no-engine"),EngineZip=arg("--engine-zip"),
       Autostart=list.Contains("--no-autostart")?false:list.Contains("--autostart")||!cur.Installed||cur.Autostart,
       Desktop=list.Contains("--no-desktop")?false:list.Contains("--desktop")||(cur.Installed&&cur.Desktop),
-      LaunchObs=list.Contains("--no-obs-launch")?false:list.Contains("--obs-launch")||!cur.Installed||cur.LaunchObs};
-     if(o.WebSocket&&Installer.IsObsRunning()&&!paths.Test){o.WebSocket=false;Console.WriteLine("OBS запущен — WebSocket не изменён");}
+      GpuPriority=list.Contains("--no-gpu-priority")?false:list.Contains("--gpu-priority")||cur.GpuPriority,
+      Progress=s=>Console.WriteLine(s)};
+     if(paths.Test){o.EngineSha=arg("--engine-sha256")??o.EngineSha;o.EngineVersion=arg("--engine-version")??o.EngineVersion;}
      foreach(string line in Installer.Install(paths,o))Console.WriteLine(line);
      return 0;
     } catch(Exception ex) { Console.Error.WriteLine(ex.Message); return 1; }

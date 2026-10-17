@@ -16,27 +16,23 @@
     <TextBlock x:Name="VersionLabel" Text="" Style="{StaticResource Hint}"/>
    </StackPanel>
   </StackPanel>
-  <TextBlock Margin="0,16,0,0" TextWrapping="Wrap" Foreground="#C4CCD4" Text="Меню мгновенного повтора поверх игр для OBS Studio — как Alt+Z у NVIDIA: сохранить последние минуты, начать запись, переключить «только игра / весь экран», скрыть выбранные приложения из записи."/>
+  <TextBlock Margin="0,16,0,0" TextWrapping="Wrap" Foreground="#C4CCD4" Text="Меню мгновенного повтора поверх игр — как Alt+Z у NVIDIA: сохранить последние минуты, начать запись, сделать скриншот, скрыть выбранные приложения из записи."/>
 
   <Border Background="#1A1E22" CornerRadius="10" Padding="16,12" Margin="0,18,0,0">
    <StackPanel>
-    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition/></Grid.ColumnDefinitions>
-     <TextBlock Text="OBS Studio" Foreground="#8E99A4"/><TextBlock x:Name="ObsLabel" Grid.Column="1" TextWrapping="Wrap"/></Grid>
-    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition/></Grid.ColumnDefinitions>
-     <TextBlock Text="WebSocket" Foreground="#8E99A4"/><TextBlock x:Name="SocketLabel" Grid.Column="1" TextWrapping="Wrap"/></Grid>
-    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition/></Grid.ColumnDefinitions>
+    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition/></Grid.ColumnDefinitions>
+     <TextBlock Text="Движок записи" Foreground="#8E99A4"/><TextBlock x:Name="EngineLabel" Grid.Column="1" TextWrapping="Wrap"/></Grid>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition/></Grid.ColumnDefinitions>
      <TextBlock Text="Папка" Foreground="#8E99A4"/><TextBlock x:Name="PathLabel" Grid.Column="1" TextWrapping="Wrap"/></Grid>
-    <Button x:Name="ObsLink" Content="Скачать OBS Studio с obsproject.com" HorizontalAlignment="Left" Padding="12,6" Margin="0,10,0,0" Visibility="Collapsed"/>
    </StackPanel>
   </Border>
 
   <StackPanel x:Name="Options" Margin="0,18,0,0">
-   <CheckBox x:Name="SocketBox" IsChecked="True" Content="Включить WebSocket-сервер OBS (нужен меню; пароль создаётся случайно)"/>
    <CheckBox x:Name="AutostartBox" IsChecked="True" Content="Запускать меню вместе с Windows (в трее, без окна)"/>
-   <CheckBox x:Name="ObsLaunchBox" IsChecked="True" Content="Запускать OBS вместе с меню (свёрнутым в трей) и перезапускать после сбоя"/>
+   <CheckBox x:Name="GpuBox" IsChecked="True"><TextBlock TextWrapping="Wrap" Text="Приоритет записи на видеокарте — меньше пропусков кадров под нагрузкой (Windows один раз спросит разрешение)"/></CheckBox>
    <CheckBox x:Name="DesktopBox" IsChecked="False" Content="Ярлык на рабочем столе"/>
    <CheckBox x:Name="LaunchBox" IsChecked="True" Content="Открыть меню после установки"/>
-   <TextBlock Style="{StaticResource Hint}" Text="Профили, сцены и настройки записи OBS установщик не меняет. Буфер повтора включается в OBS: Настройки → Вывод → Буфер повтора."/>
+   <TextBlock Style="{StaticResource Hint}" Text="Движок записи — официальный OBS Studio (лицензия GPL-2.0) в скрытом виде: скачивается с GitHub проекта OBS, сверяется по контрольной сумме и работает без окна. Ваш OBS Studio, если он установлен, не трогается."/>
   </StackPanel>
 
   <TextBlock x:Name="StatusLabel" Margin="0,16,0,0" TextWrapping="Wrap" Foreground="#C6E8A3" Visibility="Collapsed"/>
