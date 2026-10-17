@@ -27,7 +27,7 @@ namespace ReplayOverlay {
    "steam","steamwebhelper","epicgameslauncher","epicwebhelper","riotclientservices","riotclientux","riotclientuxrender","upc","ubisoftconnect","galaxyclient","battle.net","eadesktop","origin","playnite.desktopapp",
    "discord","telegram","slack","teams","ms-teams","zoom","skype","whatsapp","viber",
    "obs64","obs32","streamlabs obs","vlc","mpc-hc64","mpc-hc","mpc-be64","potplayermini64","potplayermini","wmplayer","mpv","kmplayer",
-   "applicationframehost","textinputhost","shellexperiencehost","searchhost","startmenuexperiencehost","lockapp","taskmgr","mstsc","powerpnt","photos","snippingtool","screenclippinghost",
+   "applicationframehost","textinputhost","shellexperiencehost","searchhost","startmenuexperiencehost","lockapp","taskmgr","mstsc","pickerhost","powerpnt","photos","snippingtool","screenclippinghost",
    "code","devenv","notepad","sublime_text","claude","chatgpt","replayoverlay","overwolf","nvidia overlay","nvcontainer","sonar","wallpaper32","wallpaper64","wallpaperservice32",
    "unitycrashhandler64","unitycrashhandler32","crashreportclient","easyanticheat_eos_setup","powertoys","powertoys.quickaccess"};
 

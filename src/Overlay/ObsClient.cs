@@ -25,6 +25,7 @@ namespace ReplayOverlay {
   private readonly SemaphoreSlim sendGate=new SemaphoreSlim(1,1);
   private readonly ConcurrentDictionary<string,TaskCompletionSource<Dictionary<string,object>>> pending=new ConcurrentDictionary<string,TaskCompletionSource<Dictionary<string,object>>>();
   private ClientWebSocket socket;
+  public string ConfigFile; // config.json obs-websocket этой копии OBS; null — ConfigPath (OBS пользователя)
   public volatile bool Connected;
   public event Action<bool> ConnectionChanged;
   public event Action<string,Dictionary<string,object>> EventReceived;
@@ -35,7 +36,7 @@ namespace ReplayOverlay {
   private async Task ConnectLoop() {
    while(!stop.IsCancellationRequested) {
     try {
-     var config=Json.Decode(File.ReadAllText(ConfigPath));
+     var config=Json.Decode(File.ReadAllText(ConfigFile??ConfigPath));
      if(!Json.Bool(config,"server_enabled"))throw new InvalidOperationException("В OBS выключено управление WebSocket");
      int port=Json.Int(config,"server_port",4455);
      socket=new ClientWebSocket(); socket.Options.Proxy=null; socket.Options.KeepAliveInterval=TimeSpan.FromSeconds(25);

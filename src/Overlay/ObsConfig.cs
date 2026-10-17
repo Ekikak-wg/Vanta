@@ -12,7 +12,8 @@ namespace ReplayOverlay {
 
  // Где лежат файлы OBS Studio текущего пользователя. Только чтение.
  public static class ObsConfig {
-  public static string Root { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"obs-studio"); } }
+  public static string RootOverride; // своя копия OBS: её папка настроек вместо %APPDATA%\obs-studio
+  public static string Root { get { return RootOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"obs-studio"); } }
   public static string WebSocketConfig { get { return Path.Combine(Root,@"plugin_config\obs-websocket\config.json"); } }
 
   // OBS 31+ хранит выбранный профиль и коллекцию в user.ini, более старые версии — в global.ini.

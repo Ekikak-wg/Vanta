@@ -34,12 +34,17 @@ namespace ReplayOverlay {
    return found;}
 
   // Последний журнал OBS — там список кодировщиков, найденных при запуске.
-  public static List<EncoderInfo> FromLatestLog(){
-   try{string dir=Path.Combine(ObsConfig.Root,"logs");if(!Directory.Exists(dir))return new List<EncoderInfo>();
+  public static List<EncoderInfo> FromLatestLog(){return FromLatestLog(ObsConfig.Root);}
+  public static List<EncoderInfo> FromLatestLog(string root){
+   try{string dir=Path.Combine(root,"logs");if(!Directory.Exists(dir))return new List<EncoderInfo>();
     var file=new DirectoryInfo(dir).GetFiles("*.txt").OrderByDescending(f=>f.LastWriteTime).FirstOrDefault();if(file==null)return new List<EncoderInfo>();
     using(var s=new FileStream(file.FullName,FileMode.Open,FileAccess.Read,FileShare.ReadWrite))using(var r=new StreamReader(s))return Parse(r.ReadToEnd());}
    catch(Exception){return new List<EncoderInfo>();}}
 
+  // Лучший из найденных: тот же кодек, что хотели (иначе H.264); видеокарта NVIDIA → AMD → Intel, процессор — последним.
+  public static EncoderInfo Best(List<EncoderInfo> found,string codec){
+   string[] order={"nvenc","amf","qsv","cpu"};
+   return found.Where(e=>e.Codec==codec).Concat(found.Where(e=>e.Codec=="h264")).OrderBy(e=>e.Codec==codec?0:1).ThenBy(e=>Array.IndexOf(order,e.Vendor)).FirstOrDefault();}
   public static EncoderInfo Describe(string id){var k=Known.FirstOrDefault(x=>x[0]==id);return k==null?null:new EncoderInfo{Id=id,Name=id,Vendor=k[1],Codec=k[2]};}
  }
 
