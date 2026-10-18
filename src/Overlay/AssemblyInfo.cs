@@ -3,7 +3,7 @@ using System.Reflection;
 [assembly: AssemblyTitle("Vanta")]
 [assembly: AssemblyDescription("Меню мгновенного повтора поверх игр")]
 [assembly: AssemblyProduct("Vanta")]
-[assembly: AssemblyCompany("erteterya")]
+[assembly: AssemblyCompany("Ekikak-wg")]
 [assembly: AssemblyCopyright("GPL-2.0-or-later")]
 [assembly: AssemblyVersion("1.7.0.0")]
 [assembly: AssemblyFileVersion("1.7.0.0")]

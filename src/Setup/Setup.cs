@@ -229,7 +229,7 @@ namespace ReplaySetup {
 
    using(var k=Registry.CurrentUser.CreateSubKey(p.UninstallKey)) {
     if(legacy)RemoveLegacyTraces(p);
-    k.SetValue("DisplayName",Brand.Name); k.SetValue("DisplayVersion",Version); k.SetValue("Publisher","erteterya");
+    k.SetValue("DisplayName",Brand.Name); k.SetValue("DisplayVersion",Version); k.SetValue("Publisher","Ekikak-wg");
     k.SetValue("InstallLocation",p.InstallDir); k.SetValue("DisplayIcon",p.Exe); k.SetValue("URLInfoAbout",Brand.Repo);
     k.SetValue("UninstallString","\""+p.Uninstaller+"\" --uninstall"); k.SetValue("QuietUninstallString","\""+p.Uninstaller+"\" --uninstall --silent");
     k.SetValue("NoModify",1,RegistryValueKind.DWord); k.SetValue("NoRepair",1,RegistryValueKind.DWord);
