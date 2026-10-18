@@ -10,15 +10,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/erteterya/Vanta/releases/latest"><img alt="Версия" src="https://img.shields.io/github/v/release/erteterya/Vanta?label=%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F&color=00D46A&labelColor=1A1D23"></a>
-  <a href="https://github.com/erteterya/Vanta/releases"><img alt="Загрузки" src="https://img.shields.io/github/downloads/erteterya/Vanta/total?label=%D0%B7%D0%B0%D0%B3%D1%80%D1%83%D0%B7%D0%BA%D0%B8&color=00D46A&labelColor=1A1D23"></a>
+  <a href="https://github.com/Ekikak-wg/Vanta/releases/latest"><img alt="Версия" src="https://img.shields.io/github/v/release/Ekikak-wg/Vanta?label=%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F&color=00D46A&labelColor=1A1D23"></a>
+  <a href="https://github.com/Ekikak-wg/Vanta/releases"><img alt="Загрузки" src="https://img.shields.io/github/downloads/Ekikak-wg/Vanta/total?label=%D0%B7%D0%B0%D0%B3%D1%80%D1%83%D0%B7%D0%BA%D0%B8&color=00D46A&labelColor=1A1D23"></a>
   <a href="#установка"><img alt="Windows 10 | 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-1A1D23?logo=windows&logoColor=white&labelColor=1A1D23"></a>
   <a href="docs/GUIDE.md#движок-записи"><img alt="Движок OBS 32.2.2" src="https://img.shields.io/badge/%D0%B4%D0%B2%D0%B8%D0%B6%D0%BE%D0%BA-OBS%2032.2.2-1A1D23?logo=obsstudio&logoColor=white&labelColor=1A1D23"></a>
   <a href="LICENSE"><img alt="Лицензия GPL-2.0" src="https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-GPL--2.0-1A1D23?labelColor=1A1D23"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/erteterya/Vanta/releases/latest/download/Vanta-Setup.exe"><img alt="Скачать для Windows" src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20%D0%B4%D0%BB%D1%8F%20Windows-00D46A?style=for-the-badge&logo=windows&logoColor=06140C"></a>
+  <a href="https://github.com/Ekikak-wg/Vanta/releases/latest/download/Vanta-Setup.exe"><img alt="Скачать для Windows" src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20%D0%B4%D0%BB%D1%8F%20Windows-00D46A?style=for-the-badge&logo=windows&logoColor=06140C"></a>
   <br><sub>Для ПК на Windows 10 / 11 · бесплатно, открытый код · OBS Studio ставить не нужно</sub>
 </p>
 
@@ -57,7 +57,7 @@
 
 ## Установка
 
-1. Запустите [**Vanta-Setup.exe**](https://github.com/erteterya/Vanta/releases/latest/download/Vanta-Setup.exe) — права администратора не нужны.
+1. Запустите [**Vanta-Setup.exe**](https://github.com/Ekikak-wg/Vanta/releases/latest/download/Vanta-Setup.exe) — права администратора не нужны.
 2. Установщик сам скачает движок записи (официальный OBS Studio 32.2.2, 188 МБ) и сверит контрольную сумму. Ваш OBS Studio, если он есть, не трогается.
 3. Нажмите **Alt+Z** в игре.
 
@@ -73,6 +73,6 @@
 ## Подробнее
 
 📖 [Руководство](docs/GUIDE.md) — движок, звук, приватность, галерея, ограничения, сборка из исходников<br>
-📦 [Все версии](https://github.com/erteterya/Vanta/releases)
+📦 [Все версии](https://github.com/Ekikak-wg/Vanta/releases)
 
 <sub>[GPL-2.0](LICENSE) · движок — [OBS Studio](https://obsproject.com) (GPL-2.0): установщик скачивает его официальный архив, кода OBS в репозитории нет.</sub>
