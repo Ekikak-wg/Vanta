@@ -9,7 +9,7 @@ namespace ReplayOverlay {
   public const string Settings="vanta-settings.json",LogFile="vanta.log",LogOld="vanta.1.log";
   public const string InstallFolder="Vanta",Shortcut="Vanta.lnk",RunValue="Vanta",UninstallKey="Vanta";
   public const string TaskStart=@"Vanta\Engine",TaskStop=@"Vanta\Close engine";
-  public const string Repo="https://github.com/erteterya/Replay-OBS"; // репозиторий переименуется вместе с релизом
+  public const string Repo="https://github.com/erteterya/Vanta"; // прежний адрес Replay-OBS GitHub перенаправляет сюда
   public const string Tagline="Меню мгновенного повтора поверх игр";
 
   // Прежнее имя (Replay OBS, до 1.7): установщик переносит такую установку и убирает её следы.
